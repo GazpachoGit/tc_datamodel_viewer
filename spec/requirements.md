@@ -20,11 +20,28 @@ of the Teamcenter data model.
 - **AC3.** The utility is written in Python.
 - **AC4.** Attribute mapping is defined in [mapping.yaml](./mapping.yaml).
 
+## Input
+
+- **IN1.** The utility accepts a path to a directory
+   containing Teamcenter XML files.
+- **IN2.** The utility processes XML files directly
+   in that directory, without searching subdirectories.
+
+## Output
+
+- **OUT1.** The utility combines the XML files into
+   one PlantUML file in the input directory.
+- **OUT2.** The output file name includes a timestamp
+   with second precision, for example model_20261124_102700.puml.
+- **OUT3.** If the output file already exists, the
+   utility overwrites it.
+
 ## Use case: Convert XML to PlantUML
 
 ### Normal flow
 
-- **NF1.** Accept a Teamcenter XML file as input.
+- **NF1.** Accept a directory of Teamcenter XML files
+   as input.
 - **NF2.** Iterate over its `TcClass` elements.
 - **NF3.** Create a UML class for each `TcClass`, using its `className` as the class
    name. Use one UML class per `className`. If a class already exists,
@@ -33,14 +50,16 @@ of the Teamcenter data model.
 - **NF4.** For each `parentClassName`, create a UML class if one with that name does
    not already exist. Otherwise, reuse the existing class.
 - **NF5.** Connect each class to its parent using a UML inheritance relation.
+   If `parentClassName` is absent or empty, do not
+   create an inheritance relation.
 - **NF6.** For each `TcAttribute` inside a `TcClass`, create an attribute on the
    corresponding UML class. Apply the type and characteristic mappings from
    [mapping.yaml](./mapping.yaml);
 - **NF7.** For each `TcAttributeAttach`, find the UML class named by its `className`,
    or create it if it does not exist. Add each nested `TcAttribute` to that
    class using the attribute mappings.
-- **NF8.** Write the PlantUML output file to the current working directory from which
-   the utility was invoked.
+- **NF8.** Write the combined PlantUML output file
+   to the input directory.
 
 ### Conflicting definitions
 
