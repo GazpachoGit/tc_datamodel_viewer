@@ -95,7 +95,33 @@ of the Teamcenter data model.
    characteristics are text in the diagram, not validation performed by
    PlantUML.
 
-Examples:
+Example XML fragment:
+
+```xml
+<TcClass xmlns="http://teamcenter.com/BusinessModel/TcBusinessData"
+         className="Example">
+  <TcAttribute attributeName="names" attributeType="POM_string"
+               isArray="true" maxStringLength="128"/>
+  <TcAttribute attributeName="created" attributeType="POM_date"
+               isArray="false"/>
+  <TcAttribute attributeName="severity" attributeType="POM_int"
+               isArray="false" lowerBoundValue="1" upperBoundValue="10"/>
+  <TcAttribute attributeName="install_time" attributeType="POM_int"
+               isArray="false" lowerBoundValue="0"/>
+  <TcAttribute attributeName="cost" attributeType="POM_double"
+               isArray="false"/>
+  <TcAttribute attributeName="approved" attributeType="POM_logical"
+               isArray="false"/>
+  <TcAttribute attributeName="description" attributeType="POM_long_string"
+               isArray="false"/>
+  <TcAttribute attributeName="approver" attributeType="POM_typed_reference"
+               isArray="false" typedRefClassName="GroupMember"/>
+  <TcAttribute attributeName="reference" attributeType="POM_untyped_reference"
+               isArray="false"/>
+</TcClass>
+```
+
+Corresponding PlantUML:
 
 ```plantuml
 class Example {
