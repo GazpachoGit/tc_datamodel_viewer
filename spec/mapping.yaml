@@ -1,0 +1,19 @@
+Attributes:
+  types:
+    POM_string:
+      plantuml_type: String
+      array_flag: isArray
+      max_length: maxStringLength
+    POM_date:
+      plantuml_type: Date
+      array_flag: isArray
+    POM_logical:
+      plantuml_type: Boolean
+    POM_long_string:
+      plantuml_type: LongString
+    POM_typed_reference:
+      plantuml_type_from: typedRefClassName
+      array_flag: isArray
+    POM_untyped_reference:
+      plantuml_type: UntypedReference
+      array_flag: isArray
