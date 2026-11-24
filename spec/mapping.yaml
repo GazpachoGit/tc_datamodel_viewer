@@ -1,4 +1,4 @@
-Attributes:
+TcAttribute:
   types:
     POM_string:
       plantuml_type: String
@@ -7,6 +7,16 @@ Attributes:
     POM_date:
       plantuml_type: Date
       array_flag: isArray
+    POM_int:
+      plantuml_type: Integer
+      array_flag: isArray
+      lower_bound: lowerBoundValue
+      upper_bound: upperBoundValue
+    POM_double:
+      plantuml_type: Double
+      array_flag: isArray
+      lower_bound: lowerBoundValue
+      upper_bound: upperBoundValue
     POM_logical:
       plantuml_type: Boolean
     POM_long_string:
