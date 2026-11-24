@@ -44,11 +44,11 @@ of the Teamcenter data model.
    as input.
 - **NF2.** Iterate over its `TcClass` elements.
 - **NF3.** Create a UML class for each `TcClass`, using its `className` as the class
-   name. Use one UML class per `className`. If a class already exists,
-   including one created as a parent, reuse it and add the attributes from
-   the `TcClass` definition.
-- **NF4.** For each `parentClassName`, create a UML class if one with that name does
-   not already exist. Otherwise, reuse the existing class.
+   name. Use one UML class per `className`, reusing an existing class and
+   adding attributes from each `TcClass` definition.
+- **NF4.** For the `parentClassName` of the first `TcClass` definition,
+   create a UML class if one with that name does not already exist. Otherwise,
+   reuse the existing class.
 - **NF5.** Connect each class to its parent using a UML inheritance relation.
    If `parentClassName` is absent or empty, do not
    create an inheritance relation.
@@ -61,20 +61,23 @@ of the Teamcenter data model.
 - **NF8.** Write the combined PlantUML output file
    to the input directory.
 
-### Conflicting definitions
+### Exception path
 
-- **CD1.** The utility must stop and report an error when the
-   same class is defined with different parent classes. The error must identify
-   the class and both parent names. For example:
+- **EP1.** If a `TcClass` with the same `className` was already defined,
+   add its attributes to the existing class without reporting a duplicate
+   class error. Keep the parent from the first processed `TcClass` definition,
+   even if it has no parent. Duplicate attributes are handled according to
+   EP2. For example, `Car` retains `Vehicle` as its parent:
 
    ```xml
    <TcClass className="Car" parentClassName="Vehicle"/>
    <TcClass className="Car" parentClassName="Product"/>
    ```
 
-- **CD2.** The utility must also stop and report an error when
-   attributes of the same class have the same name but different types. The
-   error must identify the class, the attribute, and both types. For example:
+- **EP2.** If an attribute with the same name already exists in the same
+   class, report an error identifying the class and attribute in the console,
+   skip the repeated attribute, and continue processing. This applies to
+   attributes from both `TcClass` and `TcAttributeAttach`. For example:
 
    ```xml
    <TcClass className="Car" parentClassName="Vehicle">
