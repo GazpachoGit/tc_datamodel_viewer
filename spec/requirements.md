@@ -46,9 +46,8 @@ of the Teamcenter data model.
 - **NF3.** Create a UML class for each `TcClass`, using its `className` as the class
    name. Use one UML class per `className`, reusing an existing class and
    adding attributes from each `TcClass` definition.
-- **NF4.** For the `parentClassName` of the first `TcClass` definition,
-   create a UML class if one with that name does not already exist. Otherwise,
-   reuse the existing class.
+- **NF4.** For each `parentClassName`, create a UML class if one with that
+   name does not already exist. Otherwise, reuse the existing class.
 - **NF5.** Connect each class to its parent using a UML inheritance relation.
    If `parentClassName` is absent or empty, do not
    create an inheritance relation.
@@ -60,31 +59,6 @@ of the Teamcenter data model.
    class using the attribute mappings.
 - **NF8.** Write the combined PlantUML output file
    to the input directory.
-
-### Exception path
-
-- **EP1.** If a `TcClass` with the same `className` was already defined,
-   add its attributes to the existing class without reporting a duplicate
-   class error. Keep the parent from the first processed `TcClass` definition,
-   even if it has no parent. Duplicate attributes are handled according to
-   EP2. For example, `Car` retains `Vehicle` as its parent:
-
-   ```xml
-   <TcClass className="Car" parentClassName="Vehicle"/>
-   <TcClass className="Car" parentClassName="Product"/>
-   ```
-
-- **EP2.** If an attribute with the same name already exists in the same
-   class, report an error identifying the class and attribute in the console,
-   skip the repeated attribute, and continue processing. This applies to
-   attributes from both `TcClass` and `TcAttributeAttach`. For example:
-
-   ```xml
-   <TcClass className="Car" parentClassName="Vehicle">
-     <TcAttribute attributeName="speed" attributeType="POM_int"/>
-     <TcAttribute attributeName="speed" attributeType="POM_string"/>
-   </TcClass>
-   ```
 
 ### Attribute representation
 
