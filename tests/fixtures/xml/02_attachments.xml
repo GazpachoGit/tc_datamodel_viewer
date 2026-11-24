@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TcBusinessData xmlns="http://teamcenter.com/BusinessModel/TcBusinessData">
+  <Add>
+    <TcClass className="Parent" parentClassName="Root">
+      <TcAttribute attributeName="code" attributeType="POM_string"
+                   isArray="false" maxStringLength="32"/>
+    </TcClass>
+    <TcAttributeAttach className="Child">
+      <TcAttribute attributeName="note" attributeType="POM_string"
+                   isArray="false" maxStringLength="64"/>
+    </TcAttributeAttach>
+    <TcClass className="Child" parentClassName="Parent">
+      <TcAttribute attributeName="releases" attributeType="POM_date"
+                   isArray="true"/>
+    </TcClass>
+    <TcAttributeAttach className="External">
+      <TcAttribute attributeName="owner" attributeType="POM_typed_reference"
+                   isArray="false" typedRefClassName="User"/>
+    </TcAttributeAttach>
+  </Add>
+</TcBusinessData>

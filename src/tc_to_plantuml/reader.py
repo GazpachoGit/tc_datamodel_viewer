@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from pathlib import Path
-import sysconfig
 from xml.etree import ElementTree
 
 import yaml
@@ -19,16 +18,6 @@ class TypeMapping:
     type: str
     array_flag: str
     chars: tuple[str, ...]
-
-
-def mapping_path() -> Path:
-    source_mapping = Path(__file__).resolve().parents[2] / "spec" / "mapping.yaml"
-    if source_mapping.is_file():
-        return source_mapping
-    data_path = sysconfig.get_path("data")
-    if data_path is None:
-        raise ValueError("Cannot determine the installation data directory")
-    return Path(data_path) / "share" / "tc-to-plantuml" / "mapping.yaml"
 
 
 def load_mapping(path: Path) -> dict[str, TypeMapping]:

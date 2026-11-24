@@ -26,6 +26,8 @@ of the Teamcenter data model.
    containing Teamcenter XML files.
 - **IN2.** The utility processes XML files directly
    in that directory, without searching subdirectories.
+- **IN3.** The utility requires the path to the YAML mapping file as the
+   `--mapping` argument.
 
 ## Output
 

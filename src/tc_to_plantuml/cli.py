@@ -6,14 +6,14 @@ from xml.etree import ElementTree
 
 import yaml
 
-from .reader import load_mapping, mapping_path, read_model
+from .reader import load_mapping, read_model
 from .renderer import render_model
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Convert Teamcenter XML files to PlantUML")
     parser.add_argument("directory", type=Path, help="directory containing XML files")
-    parser.add_argument("--mapping", type=Path, help="path to the YAML mapping file")
+    parser.add_argument("--mapping", type=Path, required=True, help="path to the YAML mapping file")
     args = parser.parse_args()
 
     try:
@@ -26,8 +26,7 @@ def main() -> int:
         )
         if not paths:
             raise ValueError(f"No XML files found in {directory}")
-        selected_mapping = args.mapping if args.mapping is not None else mapping_path()
-        model = read_model(paths, load_mapping(selected_mapping))
+        model = read_model(paths, load_mapping(args.mapping))
         output = directory / f"model_{datetime.now():%Y%m%d_%H%M%S}.puml"
         output.write_text(render_model(model), encoding="utf-8")
     except (OSError, ValueError, ElementTree.ParseError, yaml.YAMLError) as exc:
