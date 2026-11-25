@@ -34,6 +34,16 @@ export interface UmlCompound {
   chars: Record<string, string>;
 }
 
+/** One GRM rule of a relation class, from TcGRMRule (NF10). */
+export interface GrmRule {
+  /**
+   * Characteristics listed in the TcGRMRule mapping `chars`, keyed by their
+   * original XML names, in mapping order. Missing or empty values are
+   * omitted (AR3).
+   */
+  chars: Record<string, string>;
+}
+
 /** One UML class (DM2). */
 export interface UmlClass {
   name: string;
@@ -49,6 +59,8 @@ export interface UmlClass {
    * to a regular class in `Model.classes`.
    */
   relations: Set<string>;
+  /** GRM rules of this relation class, in input order (NF10). */
+  grmRules: GrmRule[];
 }
 
 /** The merged model built from all input files (DM2). */
@@ -75,12 +87,20 @@ export interface CompoundMapping {
   chars: string[];
 }
 
+/** Mapping for TcGRMRule characteristics (spec/mapping.yaml). */
+export interface GrmRuleMapping {
+  /** XML attribute names of the characteristics to expose. */
+  chars: string[];
+}
+
 /** Parsed mapping.yaml. */
 export interface MappingConfig {
   /** Mappings keyed by Teamcenter attribute type, e.g. `POM_string`. */
   types: Map<string, AttributeTypeMapping>;
   /** Mapping for compound properties; absent rules are skipped without it. */
   compound?: CompoundMapping;
+  /** Mapping for GRM rules; absent rules are skipped without it. */
+  grmRule?: GrmRuleMapping;
 }
 
 /** A TcAttribute as read from XML, before mapping is applied. */
@@ -120,6 +140,14 @@ export interface RawRelationProperty {
   propName: string;
 }
 
+/** A TcGRMRule as read from XML (NF10). */
+export interface RawGrmRule {
+  /** `relationTypeName`: the relation class the rule belongs to. */
+  relationTypeName: string;
+  /** All XML attributes of the element, for characteristic lookup. */
+  xmlAttributes: Record<string, string>;
+}
+
 /** Relevant content of one parsed XML file. */
 export interface ParsedFile {
   /** File name, used in error messages. */
@@ -128,6 +156,7 @@ export interface ParsedFile {
   attaches: RawAttributeAttach[];
   compoundRules: RawCompoundRule[];
   relationProperties: RawRelationProperty[];
+  grmRules: RawGrmRule[];
 }
 
 /** Invalid input (IV1, IV2) or malformed file detected while building the model. */

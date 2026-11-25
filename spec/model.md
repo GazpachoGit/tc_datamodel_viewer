@@ -15,6 +15,7 @@
     attributes: атрибуты по имени
     compounds: compound-свойства по имени
     relations: имена relation-классов
+    grm_rules: GRM-правила
 
   Attribute
     name: имя
@@ -27,6 +28,9 @@
     name: имя (destPropertyName)
     type: отображаемый тип из маппинга
     chars: характеристики
+
+  GRMRule
+    chars: характеристики (по маппингу TcGRMRule)
   ```
 
 - **DM2.** Назначение полей:
@@ -47,6 +51,11 @@
       равно имени relation-класса и ссылается на обычный `Class` в
       `Model.classes`. Используется для построения пунктирных рёбер диаграммы
       и обнаружения повторов пары (инвалидный вход, IV5).
+    - `grm_rules` — упорядоченный список записей `GRMRule` этого
+      relation-класса (NF10); обнаружение повторов по составному
+      идентификатору primaryTypeName + secondaryTypeName + conditionName
+      (инвалидный вход, IV6); вывод в панели свойств по AR3. Отдельного
+      реестра правил на уровне `Model` нет.
   - `Attribute` — представление одного атрибута UML-класса.
     - `name` — вывод имени и обнаружение повторов.
     - `type` — вывод типа PlantUML из маппинга.
@@ -59,4 +68,9 @@
     - `name` — вывод имени и обнаружение повторов.
     - `type` — вывод отображаемого типа из маппинга.
     - `chars` — вывод XML-имён и значений характеристик (путь `pathToSource`).
+  - `GRMRule` — форма одной записи списка `grm_rules` (не глобальный реестр),
+    из `TcGRMRule`.
+    - `chars` — вывод XML-имён и значений характеристик по маппингу
+      `TcGRMRule` (`primaryTypeName`, `secondaryTypeName`, `conditionName`,
+      `primaryCardinality`, `secondaryCardinality`).
 

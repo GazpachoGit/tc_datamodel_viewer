@@ -287,6 +287,66 @@ describe('buildModel', () => {
       new ModelError('file1.xml: class "Primary" has a duplicate relation "MyRel" (IV5)'),
     );
   });
+
+  it('adds GRM rules to existing relation classes (NF10)', () => {
+    const model = build(`
+      <TcBusinessData xmlns="${NS}">
+        <TcClass className="MyRel" parentClassName="ImanRelation"/>
+        <TcGRMRule relationTypeName="MyRel" primaryTypeName="P" secondaryTypeName="S"
+            conditionName="isTrue" primaryCardinality="-1" secondaryCardinality="1"
+            secured="false" description=""/>
+        <TcGRMRule relationTypeName="MyRel" primaryTypeName="P2" secondaryTypeName="S"
+            conditionName="isTrue" primaryCardinality="1" secondaryCardinality=""/>
+      </TcBusinessData>`);
+    const myRel = model.classes.get('MyRel')!;
+    expect(myRel.parent).toBe('ImanRelation');
+    // Mapped characteristics in order; empty values and unmapped attrs omitted.
+    expect(myRel.grmRules.map((r) => r.chars)).toEqual([
+      {
+        primaryTypeName: 'P',
+        secondaryTypeName: 'S',
+        conditionName: 'isTrue',
+        primaryCardinality: '-1',
+        secondaryCardinality: '1',
+      },
+      {
+        primaryTypeName: 'P2',
+        secondaryTypeName: 'S',
+        conditionName: 'isTrue',
+        primaryCardinality: '1',
+      },
+    ]);
+  });
+
+  it('creates a missing relation class with parent ImanRelation (NF10)', () => {
+    const model = build(`
+      <TcBusinessData xmlns="${NS}">
+        <TcGRMRule relationTypeName="CMImplements" primaryTypeName="P"
+            secondaryTypeName="S" conditionName="isTrue"/>
+      </TcBusinessData>`);
+    const created = model.classes.get('CMImplements')!;
+    expect(created.parent).toBe('ImanRelation');
+    expect(created.grmRules).toHaveLength(1);
+    // NF4 creates the referenced ImanRelation parent class.
+    expect(model.classes.get('ImanRelation')).toBeDefined();
+  });
+
+  it('rejects duplicate GRM rule composite identifiers (IV6)', () => {
+    expect(() =>
+      build(`
+        <TcBusinessData xmlns="${NS}">
+          <TcGRMRule relationTypeName="MyRel" primaryTypeName="P" secondaryTypeName="S"
+              conditionName="isTrue" primaryCardinality="-1" secondaryCardinality="1"/>
+          <TcGRMRule relationTypeName="MyRel" primaryTypeName="P" secondaryTypeName="S"
+              conditionName="isTrue" primaryCardinality="1" secondaryCardinality="-1"/>
+        </TcBusinessData>`),
+    ).toThrowError(
+      new ModelError(
+        'file0.xml: relation class "MyRel" has a duplicate GRM rule ' +
+          '(primaryTypeName "P", secondaryTypeName "S", conditionName "isTrue") (IV6)',
+      ),
+    );
+  });
 });
 
 describe('parseTcXml', () => {

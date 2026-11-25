@@ -1,11 +1,15 @@
 import ELK from 'elkjs/lib/elk.bundled.js';
 import type { Edge, Node } from '@xyflow/react';
-import type { Model, UmlAttribute, UmlCompound } from '../model/types';
+import { IMAN_RELATION } from '../model/builder';
+import type { GrmRule, Model, UmlAttribute, UmlCompound } from '../model/types';
 
 export interface ClassNodeData extends Record<string, unknown> {
   className: string;
   attributes: UmlAttribute[];
   compounds: UmlCompound[];
+  /** True for relation classes: direct parent is ImanRelation (UI7). */
+  isRelationClass: boolean;
+  grmRules: GrmRule[];
 }
 
 export type ClassNode = Node<ClassNodeData, 'umlClass'>;
@@ -48,28 +52,33 @@ function nodeSize(data: ClassNodeData): { width: number; height: number } {
 export async function layoutModel(model: Model): Promise<DiagramData> {
   const elk = new ELK();
 
-  const nodeData = Array.from(model.classes.values()).map((umlClass) => ({
+  // UI6: the ImanRelation class and all edges connected to it are hidden.
+  const classes = Array.from(model.classes.values()).filter((c) => c.name !== IMAN_RELATION);
+
+  const nodeData = classes.map((umlClass) => ({
     className: umlClass.name,
     attributes: Array.from(umlClass.attributes.values()),
     compounds: Array.from(umlClass.compounds.values()),
+    isRelationClass: umlClass.parent === IMAN_RELATION,
+    grmRules: umlClass.grmRules,
   }));
-
-  const classes = Array.from(model.classes.values());
 
   // Inheritance edges (UI2) and relation edges (NF9), kept apart for styling.
   const inheritanceEdges = classes
-    .filter((c) => c.parent)
+    .filter((c) => c.parent && c.parent !== IMAN_RELATION)
     .map((c) => ({
       id: `${c.name}-inherits-${c.parent}`,
       sources: [c.name],
       targets: [c.parent as string],
     }));
   const relationEdges = classes.flatMap((c) =>
-    Array.from(c.relations).map((relationName) => ({
-      id: `${c.name}-relation-${relationName}`,
-      sources: [c.name],
-      targets: [relationName],
-    })),
+    Array.from(c.relations)
+      .filter((relationName) => relationName !== IMAN_RELATION)
+      .map((relationName) => ({
+        id: `${c.name}-relation-${relationName}`,
+        sources: [c.name],
+        targets: [relationName],
+      })),
   );
 
   const elkGraph = {

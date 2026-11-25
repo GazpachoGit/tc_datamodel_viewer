@@ -50,6 +50,21 @@ body,
   min-width: 140px;
 }
 
+.uml-class--selected {
+  box-shadow: 0 0 0 2px #2b6cb0;
+}
+
+/* Relation class nodes (UI7). */
+.uml-class--relation {
+  background: #faf5ff;
+  border-color: #805ad5;
+  cursor: pointer;
+}
+
+.uml-class--relation .uml-class__name {
+  border-bottom-color: #805ad5;
+}
+
 .uml-class__name {
   padding: 7px 12px;
   border-bottom: 1.5px solid #4a5568;
@@ -115,6 +130,14 @@ body,
   font-family: 'Cascadia Code', Consolas, monospace;
   font-size: 12.5px;
   white-space: nowrap;
+}
+
+.props-panel__block {
+  margin-top: 12px;
+}
+
+.props-panel__row--heading {
+  font-weight: 600;
 }
 
 .props-panel__empty {

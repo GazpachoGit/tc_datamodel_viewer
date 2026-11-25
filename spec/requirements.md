@@ -42,13 +42,17 @@ selected attributes in a properties panel.
 - **IV3.** A `TcAttribute` whose `attributeType` is not defined in
    [mapping.yaml](./mapping.yaml) is silently ignored: it is not added to the
    model and does not appear in the diagram or the properties panel.
-- **IV4.** When invalid input (IV1, IV2, IV5) is detected, the viewer aborts
-   building the model and displays only an error message identifying the
-   offending class and the duplicate property, conflicting parents, or
-   duplicate relation.
+- **IV4.** When invalid input (IV1, IV2, IV5, IV6) is detected, the viewer
+   aborts building the model and displays only an error message identifying
+   the offending class and the duplicate property, conflicting parents,
+   duplicate relation, or duplicate GRM rule.
 - **IV5.** A duplicate relation declaration — the same primary class and
    relation class pair declared more than once across all `TcStandardType`
    and `TcPropertyAttach` elements in all input files — is invalid input.
+- **IV6.** A duplicate GRM rule — more than one `TcGRMRule` with the same
+   composite identifier (`primaryTypeName`, `secondaryTypeName`,
+   `conditionName`) for the same relation class, across all input files — is
+   invalid input.
 
 ## Example input
 
@@ -88,6 +92,10 @@ selected attributes in a properties panel.
   <TcProperty propName="ExampleRelation" propTypeName="Relation"
               propValueType="PROP_untyped_relation" isArray="true"/>
 </TcPropertyAttach>
+<TcGRMRule xmlns="http://teamcenter.com/BusinessModel/TcBusinessData"
+    relationTypeName="ExampleRelation" primaryTypeName="ExampleRevision"
+    secondaryTypeName="GroupMember" conditionName="isTrue"
+    primaryCardinality="-1" secondaryCardinality="1"/>
 ```
 
 ## User interface
@@ -124,9 +132,14 @@ selected attributes in a properties panel.
    ```
 - **UI4.** The user can select an attribute or a compound property in the
    diagram. The properties panel displays the properties of the selected
-   item. Classes cannot be selected.
+   item. A relation class node (UI7) can also be selected as a whole by
+   clicking it; other classes cannot be selected.
 - **UI5.** When an attribute is selected, the properties panel displays its
    characteristics as defined by the attribute mapping.
+- **UI6.** The class named `ImanRelation` and all edges connected to it are
+   not rendered in the diagram. The class remains part of the model.
+- **UI7.** Relation class nodes — classes whose direct parent is
+   `ImanRelation` — are rendered in a distinct color.
 
 ### Properties Panel
 
@@ -185,6 +198,29 @@ type : Compound
 pathToSource : REF(approver,GroupMember).group
 ```
 
+#### Relation class representation
+
+- **AR3.** When a relation class is selected, the properties panel lists the
+   class name and its GRM rules. Display `className` with the class name on
+   the first line, then one block per GRM rule starting with a `GRMRule:`
+   heading followed by the rule's characteristics as defined by the
+   `TcGRMRule` mapping, one `<property name> : <value>` line each, using the
+   original XML names. Omit missing or empty characteristics. Rules keep
+   their input order.
+
+Properties panel for the selected `ExampleRelation` relation class:
+
+```text
+className : ExampleRelation
+
+GRMRule:
+primaryTypeName : ExampleRevision
+secondaryTypeName : GroupMember
+conditionName : isTrue
+primaryCardinality : -1
+secondaryCardinality : 1
+```
+
 ## Use case: Build the intermediate model
 
 ### Normal flow
@@ -224,3 +260,10 @@ pathToSource : REF(approver,GroupMember).group
    declaration of the same pair is invalid input (IV5). `TcProperty` elements
    in other contexts and their other XML attributes are ignored; relation
    properties are not rendered as rows in the primary class node.
+- **NF10.** For each `TcGRMRule`, find the UML class named by its
+   `relationTypeName`; if it does not exist, create it with `ImanRelation` as
+   its parent. Append a GRM rule to that class with the characteristics
+   defined by the `TcGRMRule` mapping in [mapping.yaml](./mapping.yaml):
+   the original XML attribute values listed in `chars`. Rules keep their
+   input order; other XML attributes of the rule are not displayed. A
+   repeated composite identifier is invalid input (IV6).

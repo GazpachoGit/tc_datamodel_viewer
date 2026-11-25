@@ -28,6 +28,28 @@ export function PropertiesPanel() {
     ];
   }
 
+  // AR3: class name, then one block per GRM rule.
+  if (selected?.kind === 'relationClass') {
+    return (
+      <aside className="props-panel">
+        <h2 className="props-panel__title">Properties</h2>
+        <dl className="props-panel__list">
+          <div className="props-panel__row">className : {selected.className}</div>
+          {selected.grmRules.map((rule, index) => (
+            <div key={index} className="props-panel__block">
+              <div className="props-panel__row props-panel__row--heading">GRMRule:</div>
+              {Object.entries(rule.chars).map(([name, value]) => (
+                <div key={name} className="props-panel__row">
+                  {name} : {value}
+                </div>
+              ))}
+            </div>
+          ))}
+        </dl>
+      </aside>
+    );
+  }
+
   return (
     <aside className="props-panel">
       <h2 className="props-panel__title">Properties</h2>

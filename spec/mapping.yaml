@@ -38,3 +38,10 @@ TcCompoundPropertyRule:
   type: Compound
   chars:
     - pathToSource
+TcGRMRule:
+  chars:
+    - primaryTypeName
+    - secondaryTypeName
+    - conditionName
+    - primaryCardinality
+    - secondaryCardinality

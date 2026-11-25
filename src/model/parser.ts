@@ -5,6 +5,7 @@ import {
   type RawAttributeAttach,
   type RawClass,
   type RawCompoundRule,
+  type RawGrmRule,
   type RawRelationProperty,
 } from './types';
 
@@ -73,7 +74,20 @@ export function parseTcXml(fileName: string, xmlText: string): ParsedFile {
     }
   }
 
-  return { fileName, classes, attaches, compoundRules, relationProperties };
+  // NF10: TcGRMRule elements.
+  const grmRules: RawGrmRule[] = [];
+  for (const el of byTag(doc, 'TcGRMRule')) {
+    const xmlAttributes: Record<string, string> = {};
+    for (const attr of Array.from(el.attributes)) {
+      xmlAttributes[attr.name] = attr.value;
+    }
+    grmRules.push({
+      relationTypeName: requireAttr(el, 'relationTypeName', fileName),
+      xmlAttributes,
+    });
+  }
+
+  return { fileName, classes, attaches, compoundRules, relationProperties, grmRules };
 }
 
 function byTag(doc: Document, localName: string): Element[] {

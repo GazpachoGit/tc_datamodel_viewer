@@ -4,13 +4,15 @@ import { attributeLabel, compoundLabel, type ClassNode } from '../../layout/layo
 
 /**
  * UML-style class node: name header plus one row per attribute and compound
- * property (UI3).
+ * property (UI3). Relation class nodes are colored and selectable (UI7, AR3).
  */
 export function ClassNodeView({ data }: NodeProps<ClassNode>) {
   const { selected, select } = useSelection();
 
   const isSelected = (name: string) =>
     selected !== null && selected.className === data.className && selectedName(selected) === name;
+  const isClassSelected =
+    selected?.kind === 'relationClass' && selected.className === data.className;
 
   const row = (name: string, label: string, selection: SelectedProperty) => (
     <li
@@ -25,8 +27,24 @@ export function ClassNodeView({ data }: NodeProps<ClassNode>) {
     </li>
   );
 
+  const classNames = [
+    'uml-class',
+    data.isRelationClass ? 'uml-class--relation' : '',
+    isClassSelected ? 'uml-class--selected' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className="uml-class">
+    <div
+      className={classNames}
+      onClick={
+        data.isRelationClass
+          ? () =>
+              select({ kind: 'relationClass', className: data.className, grmRules: data.grmRules })
+          : undefined
+      }
+    >
       <Handle type="source" position={Position.Top} className="uml-handle" isConnectable={false} />
       <div className="uml-class__name">{data.className}</div>
       <ul className="uml-class__attrs">

@@ -5,19 +5,24 @@ import {
   type ParsedFile,
   type RawAttribute,
   type RawCompoundRule,
+  type RawGrmRule,
   type UmlAttribute,
   type UmlClass,
 } from './types';
 
+/** Parent assigned to relation classes created by GRM rules (NF10, UI7). */
+export const IMAN_RELATION = 'ImanRelation';
+
 /**
- * Builds the intermediate model from parsed files (NF1-NF9), enforcing the
- * input validation rules (IV1-IV5):
+ * Builds the intermediate model from parsed files (NF1-NF10), enforcing the
+ * input validation rules (IV1-IV6):
  * - duplicate property names within a class (attributes and compound
  *   properties combined) abort with ModelError (IV1);
  * - two different non-empty parents for a class abort with ModelError (IV2);
  * - attributes with an attributeType missing from the mapping are silently
  *   skipped (IV3);
- * - duplicate primary-relation pair declarations abort with ModelError (IV5).
+ * - duplicate primary-relation pair declarations abort with ModelError (IV5);
+ * - duplicate GRM rule composite identifiers abort with ModelError (IV6).
  */
 export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
   const model: Model = { classes: new Map() };
@@ -55,6 +60,10 @@ export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
       }
       primary.relations.add(rel.propName);
     }
+    // NF10: TcGRMRule appends GRM rules to its relation class.
+    for (const rule of file.grmRules) {
+      addGrmRule(model, rule, mapping, file.fileName);
+    }
   }
 
   // NF4: ensure referenced parents exist as classes.
@@ -65,6 +74,7 @@ export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
         attributes: new Map(),
         compounds: new Map(),
         relations: new Set(),
+        grmRules: [],
       });
     }
   }
@@ -75,7 +85,13 @@ export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
 function getOrCreateClass(model: Model, name: string): UmlClass {
   let umlClass = model.classes.get(name);
   if (!umlClass) {
-    umlClass = { name, attributes: new Map(), compounds: new Map(), relations: new Set() };
+    umlClass = {
+      name,
+      attributes: new Map(),
+      compounds: new Map(),
+      relations: new Set(),
+      grmRules: [],
+    };
     model.classes.set(name, umlClass);
   }
   return umlClass;
@@ -162,4 +178,49 @@ function requireUniqueName(umlClass: UmlClass, name: string, fileName: string): 
       `${fileName}: class "${umlClass.name}" has a duplicate property "${name}" (IV1)`,
     );
   }
+}
+
+/** NF10, IV6: appends one GRM rule to its relation class. */
+function addGrmRule(
+  model: Model,
+  rule: RawGrmRule,
+  mapping: MappingConfig,
+  fileName: string,
+): void {
+  if (!mapping.grmRule) {
+    return; // No GRM rule mapping configured: rules are skipped.
+  }
+  let umlClass = model.classes.get(rule.relationTypeName);
+  if (!umlClass) {
+    umlClass = {
+      name: rule.relationTypeName,
+      parent: IMAN_RELATION,
+      attributes: new Map(),
+      compounds: new Map(),
+      relations: new Set(),
+      grmRules: [],
+    };
+    model.classes.set(umlClass.name, umlClass);
+  }
+
+  // IV6: composite identifier primaryTypeName + secondaryTypeName + conditionName.
+  const ID_PARTS = ['primaryTypeName', 'secondaryTypeName', 'conditionName'];
+  const keyOf = (get: (name: string) => string | undefined) =>
+    ID_PARTS.map((part) => get(part) ?? '').join('\u0000');
+  const key = keyOf((part) => rule.xmlAttributes[part]);
+  if (umlClass.grmRules.some((existing) => keyOf((part) => existing.chars[part]) === key)) {
+    const id = ID_PARTS.map((part) => `${part} "${rule.xmlAttributes[part] ?? ''}"`).join(', ');
+    throw new ModelError(
+      `${fileName}: relation class "${umlClass.name}" has a duplicate GRM rule (${id}) (IV6)`,
+    );
+  }
+
+  const chars: Record<string, string> = {};
+  for (const charName of mapping.grmRule.chars) {
+    const value = rule.xmlAttributes[charName];
+    if (value !== undefined && value !== '') {
+      chars[charName] = value; // AR3: omit missing or empty characteristics.
+    }
+  }
+  umlClass.grmRules.push({ chars });
 }

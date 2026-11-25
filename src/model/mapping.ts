@@ -3,6 +3,7 @@ import {
   ModelError,
   type AttributeTypeMapping,
   type CompoundMapping,
+  type GrmRuleMapping,
   type MappingConfig,
 } from './types';
 
@@ -39,7 +40,7 @@ export function parseMapping(yamlText: string): MappingConfig {
     }
     types.set(typeName, { type, arrayFlag, chars: charsNode as string[] });
   }
-  return { types, compound: parseCompoundMapping(root) };
+  return { types, compound: parseCompoundMapping(root), grmRule: parseGrmRuleMapping(root) };
 }
 
 function parseCompoundMapping(root: Record<string, unknown>): CompoundMapping | undefined {
@@ -56,6 +57,18 @@ function parseCompoundMapping(root: Record<string, unknown>): CompoundMapping | 
     throw new ModelError('mapping.yaml: TcCompoundPropertyRule has an invalid "chars" list');
   }
   return { type, chars: charsNode as string[] };
+}
+
+function parseGrmRuleMapping(root: Record<string, unknown>): GrmRuleMapping | undefined {
+  if (!('TcGRMRule' in root)) {
+    return undefined;
+  }
+  const entry = asRecord(root['TcGRMRule'], 'TcGRMRule');
+  const charsNode = entry['chars'] ?? [];
+  if (!Array.isArray(charsNode) || charsNode.some((c) => typeof c !== 'string')) {
+    throw new ModelError('mapping.yaml: TcGRMRule has an invalid "chars" list');
+  }
+  return { chars: charsNode as string[] };
 }
 
 function asRecord(value: unknown, what: string): Record<string, unknown> {
