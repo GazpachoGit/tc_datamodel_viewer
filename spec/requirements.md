@@ -5,7 +5,7 @@
 The product is a viewer for class diagrams generated from Teamcenter data model
 XML. It presents classes, inheritance relationships, and attributes in a
 UML-like diagram, and displays additional Teamcenter-specific information about
-selected classes and attributes in a properties panel.
+selected attributes in a properties panel.
 
 ## Glossary
 
@@ -17,17 +17,32 @@ selected classes and attributes in a properties panel.
 
 - **AC1.** The input XML conforms to the Teamcenter business model schema with namespace
    `http://teamcenter.com/BusinessModel/TcBusinessData`.
-- **AC2.** The viewer is written in Python.
-- **AC3.** Attribute mapping is defined in [mapping.yaml](./mapping.yaml).
+- **AC2.** Attribute mapping is defined in [mapping.yaml](./mapping.yaml).
 
 ## Input
 
-- **IN1.** The viewer provides a setting for the path to the directory
-   containing Teamcenter XML files.
-- **IN2.** The utility processes XML files directly
-   in that directory, without searching subdirectories.
+- **IN1.** Teamcenter XML files are included in the application source under
+   `src/data/xml` and bundled with the viewer.
+- **IN2.** The viewer processes XML files directly in that directory, without
+   searching subdirectories. Selecting a directory at runtime is not required.
 - **IN3.** The attribute mapping file is included in the viewer's source files
    and is not supplied as runtime input.
+
+## Input validation
+
+- **IV1.** A duplicate attribute definition — the same `attributeName`
+   appearing more than once for the same class, across all `TcClass` and
+   `TcAttributeAttach` elements in all input files — is invalid input.
+- **IV2.** Conflicting parents — two different non-empty `parentClassName`
+   values for the same class — are invalid input. An absent or empty
+   `parentClassName` does not conflict with a non-empty one; a class created
+   without a parent may receive one later.
+- **IV3.** A `TcAttribute` whose `attributeType` is not defined in
+   [mapping.yaml](./mapping.yaml) is silently ignored: it is not added to the
+   model and does not appear in the diagram or the properties panel.
+- **IV4.** When invalid input (IV1, IV2) is detected, the viewer aborts
+   building the model and displays only an error message identifying the
+   offending class and the duplicate attribute or conflicting parents.
 
 ## Example input
 
@@ -82,8 +97,9 @@ selected classes and attributes in a properties panel.
      reference : UntypedReference
    }
    ```
-- **UI4.** The user can select a class or an attribute in the diagram. The
-   properties panel displays the properties of the selected element.
+- **UI4.** The user can select an attribute in the diagram. The properties
+   panel displays the properties of the selected attribute. Classes cannot be
+   selected.
 - **UI5.** When an attribute is selected, the properties panel displays its
    characteristics as defined by the attribute mapping.
 
@@ -92,16 +108,18 @@ selected classes and attributes in a properties panel.
 #### Attribute representation
 
 - **AR1.** When an attribute is selected, the properties panel lists its name,
-   array flag, and mapped characteristics. Display each item on a separate
-   line in the format `<XML attribute name> : <value>`. Use `attributeName`
-   for the attribute name, the mapped `array_flag` XML attribute for the array
-   flag, and the original XML names for characteristics listed in `chars`.
-   Omit missing or empty characteristics.
+   mapped type, array flag, and mapped characteristics. Display each item on a
+   separate line in the format `<property name> : <value>`. Use
+   `attributeName` for the attribute name, `type` for its mapped type, the
+   mapped `array_flag` XML attribute for the array flag, and the original XML
+   names for characteristics listed in `chars`. Omit missing or empty
+   characteristics.
 
 Properties panel for the selected `names` attribute:
 
 ```text
 attributeName : names
+type : String
 isArray : true
 maxStringLength : 128
 ```
@@ -110,6 +128,7 @@ Properties panel for the selected `severity` integer attribute:
 
 ```text
 attributeName : severity
+type : Integer
 isArray : false
 lowerBoundValue : 1
 upperBoundValue : 10
@@ -119,6 +138,7 @@ Properties panel for the selected `approver` typed reference attribute:
 
 ```text
 attributeName : approver
+type : TypedReference
 isArray : false
 typedRefClassName : GroupMember
 ```
@@ -127,20 +147,23 @@ typedRefClassName : GroupMember
 
 ### Normal flow
 
-- **NF1.** Accept a directory of Teamcenter XML files
-   as input.
+- **NF1.** Load the Teamcenter XML files bundled from `src/data/xml`.
 - **NF2.** Iterate over its `TcClass` elements.
 - **NF3.** Create a UML class for each `TcClass`, using its `className` as the class
    name. Use one UML class per `className`, reusing an existing class and
-   adding attributes from each `TcClass` definition.
+   adding attributes from each `TcClass` definition. Adding an attribute whose
+   name already exists on the class is invalid input (IV1).
 - **NF4.** For each `parentClassName`, create a UML class if one with that
    name does not already exist. Otherwise, reuse the existing class.
 - **NF5.** Connect each class to its parent using a UML inheritance relation.
    If `parentClassName` is absent or empty, do not
-   create an inheritance relation.
+   create an inheritance relation. If the class already has a different
+   non-empty parent, the input is invalid (IV2).
 - **NF6.** For each `TcAttribute` inside a `TcClass`, create an attribute on the
    corresponding UML class. Apply the type and characteristic mappings from
-   [mapping.yaml](./mapping.yaml);
+   [mapping.yaml](./mapping.yaml); if the `attributeType` is not defined in the
+   mapping, skip the attribute (IV3).
 - **NF7.** For each `TcAttributeAttach`, find the UML class named by its `className`,
    or create it if it does not exist. Add each nested `TcAttribute` to that
-   class using the attribute mappings.
+   class using the attribute mappings. IV1 and IV3 apply to these attributes
+   as well.

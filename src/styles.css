@@ -1,0 +1,140 @@
+:root {
+  font-family: 'Segoe UI', system-ui, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  color: #1a202c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+.app {
+  display: flex;
+  height: 100%;
+}
+
+/* Diagram area (UI1) */
+
+.diagram {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+.react-flow__edge-path {
+  stroke: #4a5568;
+  stroke-width: 1.5;
+}
+
+/* UML class node (UI3) */
+
+.uml-class {
+  border: 1.5px solid #4a5568;
+  border-radius: 2px;
+  background: #fffbea;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.15);
+  font-size: 13px;
+  min-width: 140px;
+}
+
+.uml-class__name {
+  padding: 7px 12px;
+  border-bottom: 1.5px solid #4a5568;
+  font-weight: 600;
+  text-align: center;
+}
+
+.uml-class__attrs {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.uml-attr {
+  padding: 2px 12px;
+  line-height: 17px;
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 12px;
+}
+
+.uml-attr:hover {
+  background: #fef3c7;
+}
+
+.uml-attr--selected {
+  background: #2b6cb0;
+  color: #ffffff;
+}
+
+.uml-attr--selected:hover {
+  background: #2b6cb0;
+}
+
+.uml-handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Properties panel (UI1, AR1) */
+
+.props-panel {
+  width: 320px;
+  flex-shrink: 0;
+  border-left: 1px solid #cbd5e0;
+  background: #f7fafc;
+  padding: 16px;
+  overflow: auto;
+}
+
+.props-panel__title {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+
+.props-panel__list {
+  margin: 0;
+}
+
+.props-panel__row {
+  padding: 3px 0;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.props-panel__empty {
+  color: #718096;
+}
+
+/* Errors and loading */
+
+.error-screen {
+  padding: 32px;
+}
+
+.error-screen h1 {
+  color: #c53030;
+  font-size: 20px;
+}
+
+.error-screen__message {
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 4px;
+  padding: 16px;
+  white-space: pre-wrap;
+}
+
+.loading {
+  padding: 32px;
+  color: #718096;
+}
