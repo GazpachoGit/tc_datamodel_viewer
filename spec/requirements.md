@@ -2,9 +2,10 @@
 
 ## Product overview
 
-The utility converts a Teamcenter template XML file representing a data model
-into a PlantUML class diagram. The diagram provides a readable representation
-of the Teamcenter data model.
+The product is a viewer for class diagrams generated from Teamcenter data model
+XML. It presents classes, inheritance relationships, and attributes in a
+UML-like diagram, and displays additional Teamcenter-specific information about
+selected classes and attributes in a properties panel.
 
 ## Glossary
 
@@ -16,65 +17,19 @@ of the Teamcenter data model.
 
 - **AC1.** The input XML conforms to the Teamcenter business model schema with namespace
    `http://teamcenter.com/BusinessModel/TcBusinessData`.
-- **AC2.** The output is a PlantUML file.
-- **AC3.** The utility is written in Python.
-- **AC4.** Attribute mapping is defined in [mapping.yaml](./mapping.yaml).
+- **AC2.** The viewer is written in Python.
+- **AC3.** Attribute mapping is defined in [mapping.yaml](./mapping.yaml).
 
 ## Input
 
-- **IN1.** The utility accepts a path to a directory
+- **IN1.** The viewer provides a setting for the path to the directory
    containing Teamcenter XML files.
 - **IN2.** The utility processes XML files directly
    in that directory, without searching subdirectories.
-- **IN3.** The utility requires the path to the YAML mapping file as the
-   `--mapping` argument.
+- **IN3.** The attribute mapping file is included in the viewer's source files
+   and is not supplied as runtime input.
 
-## Output
-
-- **OUT1.** The utility combines the XML files into
-   one PlantUML file in the input directory.
-- **OUT2.** The output file name includes a timestamp
-   with second precision, for example model_20261124_102700.puml.
-- **OUT3.** If the output file already exists, the
-   utility overwrites it.
-
-## Use case: Convert XML to PlantUML
-
-### Normal flow
-
-- **NF1.** Accept a directory of Teamcenter XML files
-   as input.
-- **NF2.** Iterate over its `TcClass` elements.
-- **NF3.** Create a UML class for each `TcClass`, using its `className` as the class
-   name. Use one UML class per `className`, reusing an existing class and
-   adding attributes from each `TcClass` definition.
-- **NF4.** For each `parentClassName`, create a UML class if one with that
-   name does not already exist. Otherwise, reuse the existing class.
-- **NF5.** Connect each class to its parent using a UML inheritance relation.
-   If `parentClassName` is absent or empty, do not
-   create an inheritance relation.
-- **NF6.** For each `TcAttribute` inside a `TcClass`, create an attribute on the
-   corresponding UML class. Apply the type and characteristic mappings from
-   [mapping.yaml](./mapping.yaml);
-- **NF7.** For each `TcAttributeAttach`, find the UML class named by its `className`,
-   or create it if it does not exist. Add each nested `TcAttribute` to that
-   class using the attribute mappings.
-- **NF8.** Write the combined PlantUML output file
-   to the input directory.
-
-### Attribute representation
-
-- **AR1.** Render each attribute as its name followed
-   by the value of type in its mapping. The mapping's array_flag names the XML
-   attribute that indicates an array; when its value is true, append [] to
-   the type.
-- **AR2.** The optional chars list names XML
-   attributes to display as characteristics, using their original XML names
-   and values in braces. Omit missing or empty characteristics. These
-   characteristics are text in the diagram, not validation performed by
-   PlantUML.
-
-Example XML fragment:
+## Example input
 
 ```xml
 <TcClass xmlns="http://teamcenter.com/BusinessModel/TcBusinessData"
@@ -100,18 +55,92 @@ Example XML fragment:
 </TcClass>
 ```
 
-Corresponding PlantUML:
+## User interface
 
-```plantuml
-class Example {
-  names : String[] {maxStringLength=128}
-  created : Date
-  severity : Integer {lowerBoundValue=1, upperBoundValue=10}
-  install_time : Integer {lowerBoundValue=0}
-  cost : Double
-  approved : Boolean
-  description : LongString
-  approver : TypedReference {typedRefClassName=GroupMember}
-  reference : UntypedReference
-}
+- **UI1.** The UI contains two areas: a UML-like class diagram and a properties
+   panel.
+- **UI2.** The diagram connects parent and child classes with inheritance
+   relations.
+- **UI3.** Each class node is rendered in a style similar to UML class
+   notation. It contains the class name and a list of attributes showing each
+   attribute's name, mapped type, and array marker when applicable.
+   Attribute characteristics are not shown in the class node; they are shown
+   in the properties panel.
+
+   Example diagram representation:
+
+   ```text
+   class Example {
+     names : String[]
+     created : Date
+     severity : Integer
+     install_time : Integer
+     cost : Double
+     approved : Boolean
+     description : LongString
+     approver : TypedReference
+     reference : UntypedReference
+   }
+   ```
+- **UI4.** The user can select a class or an attribute in the diagram. The
+   properties panel displays the properties of the selected element.
+- **UI5.** When an attribute is selected, the properties panel displays its
+   characteristics as defined by the attribute mapping.
+
+### Properties Panel
+
+#### Attribute representation
+
+- **AR1.** When an attribute is selected, the properties panel lists its name,
+   array flag, and mapped characteristics. Display each item on a separate
+   line in the format `<XML attribute name> : <value>`. Use `attributeName`
+   for the attribute name, the mapped `array_flag` XML attribute for the array
+   flag, and the original XML names for characteristics listed in `chars`.
+   Omit missing or empty characteristics.
+
+Properties panel for the selected `names` attribute:
+
+```text
+attributeName : names
+isArray : true
+maxStringLength : 128
 ```
+
+Properties panel for the selected `severity` integer attribute:
+
+```text
+attributeName : severity
+isArray : false
+lowerBoundValue : 1
+upperBoundValue : 10
+```
+
+Properties panel for the selected `approver` typed reference attribute:
+
+```text
+attributeName : approver
+isArray : false
+typedRefClassName : GroupMember
+```
+
+## Use case: Build the intermediate model
+
+### Normal flow
+
+- **NF1.** Accept a directory of Teamcenter XML files
+   as input.
+- **NF2.** Iterate over its `TcClass` elements.
+- **NF3.** Create a UML class for each `TcClass`, using its `className` as the class
+   name. Use one UML class per `className`, reusing an existing class and
+   adding attributes from each `TcClass` definition.
+- **NF4.** For each `parentClassName`, create a UML class if one with that
+   name does not already exist. Otherwise, reuse the existing class.
+- **NF5.** Connect each class to its parent using a UML inheritance relation.
+   If `parentClassName` is absent or empty, do not
+   create an inheritance relation.
+- **NF6.** For each `TcAttribute` inside a `TcClass`, create an attribute on the
+   corresponding UML class. Apply the type and characteristic mappings from
+   [mapping.yaml](./mapping.yaml);
+- **NF7.** For each `TcAttributeAttach`, find the UML class named by its `className`,
+   or create it if it does not exist. Add each nested `TcAttribute` to that
+   class using the attribute mappings.
