@@ -3,12 +3,12 @@ import { Diagram } from '../components/diagram/Diagram';
 import { PropertiesPanel } from '../components/properties/PropertiesPanel';
 import { layoutModel, type DiagramData } from '../layout/layout';
 import { loadModel } from './loadData';
-import { SelectionContext, type SelectedAttribute } from './selection';
+import { SelectionContext, type SelectedProperty } from './selection';
 
 export default function App() {
   const [diagram, setDiagram] = useState<DiagramData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<SelectedAttribute | null>(null);
+  const [selected, setSelected] = useState<SelectedProperty | null>(null);
 
   useEffect(() => {
     let cancelled = false;

@@ -143,7 +143,7 @@ describe('buildModel', () => {
             <TcAttribute attributeName="a" attributeType="POM_date" isArray="false"/>
           </TcAttributeAttach>
         </TcBusinessData>`),
-    ).toThrowError(new ModelError('file0.xml: class "C" has a duplicate attribute "a" (IV1)'));
+    ).toThrowError(new ModelError('file0.xml: class "C" has a duplicate property "a" (IV1)'));
   });
 
   it('rejects two different non-empty parents (IV2)', () => {
@@ -174,6 +174,70 @@ describe('buildModel', () => {
         </TcClass>
       </TcBusinessData>`);
     expect(Array.from(model.classes.get('C')!.attributes.keys())).toEqual(['k']);
+  });
+
+  it('adds compound properties from TcCompoundPropertyRule (NF8)', () => {
+    const model = build(`
+      <TcBusinessData xmlns="${NS}">
+        <TcClass className="C"/>
+        <TcCompoundPropertyRule destTypeName="C" destPropertyName="p"
+            sourceTypeName="S" sourcePropertyName="sp" isReadOnly="true"
+            pathToSource="REF(a,S).sp"/>
+        <TcCompoundPropertyRule destTypeName="Missing" destPropertyName="q"
+            pathToSource="REF(b,S).sp"/>
+      </TcBusinessData>`);
+    const p = model.classes.get('C')!.compounds.get('p')!;
+    expect(p.type).toBe('Compound');
+    expect(p.chars).toEqual({ pathToSource: 'REF(a,S).sp' });
+    // The dest class is created when missing, like NF7.
+    expect(model.classes.get('Missing')!.compounds.get('q')!.type).toBe('Compound');
+  });
+
+  it('omits an empty pathToSource characteristic (AR2)', () => {
+    const model = build(`
+      <TcBusinessData xmlns="${NS}">
+        <TcCompoundPropertyRule destTypeName="C" destPropertyName="p" pathToSource=""/>
+      </TcBusinessData>`);
+    expect(model.classes.get('C')!.compounds.get('p')!.chars).toEqual({});
+  });
+
+  it('rejects name collisions between attributes and compound properties (IV1)', () => {
+    const attrThenCompound = `
+      <TcBusinessData xmlns="${NS}">
+        <TcClass className="C">
+          <TcAttribute attributeName="p" attributeType="POM_string" isArray="false"/>
+        </TcClass>
+        <TcCompoundPropertyRule destTypeName="C" destPropertyName="p" pathToSource="x"/>
+      </TcBusinessData>`;
+    expect(() => build(attrThenCompound)).toThrowError(
+      new ModelError('file0.xml: class "C" has a duplicate property "p" (IV1)'),
+    );
+
+    // Compound properties are added after attributes within a file, so the
+    // reverse collision needs the compound rule in an earlier file.
+    const compoundThenAttr = [
+      `<TcBusinessData xmlns="${NS}">
+         <TcCompoundPropertyRule destTypeName="C" destPropertyName="p" pathToSource="x"/>
+       </TcBusinessData>`,
+      `<TcBusinessData xmlns="${NS}">
+         <TcClass className="C">
+           <TcAttribute attributeName="p" attributeType="POM_string" isArray="false"/>
+         </TcClass>
+       </TcBusinessData>`,
+    ];
+    expect(() => build(...compoundThenAttr)).toThrowError(
+      new ModelError('file1.xml: class "C" has a duplicate property "p" (IV1)'),
+    );
+  });
+
+  it('rejects duplicate compound properties (IV1)', () => {
+    expect(() =>
+      build(`
+        <TcBusinessData xmlns="${NS}">
+          <TcCompoundPropertyRule destTypeName="C" destPropertyName="p" pathToSource="x"/>
+          <TcCompoundPropertyRule destTypeName="C" destPropertyName="p" pathToSource="y"/>
+        </TcBusinessData>`),
+    ).toThrowError(new ModelError('file0.xml: class "C" has a duplicate property "p" (IV1)'));
   });
 });
 

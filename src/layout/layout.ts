@@ -1,10 +1,11 @@
 import ELK from 'elkjs/lib/elk.bundled.js';
 import type { Edge, Node } from '@xyflow/react';
-import type { Model, UmlAttribute } from '../model/types';
+import type { Model, UmlAttribute, UmlCompound } from '../model/types';
 
 export interface ClassNodeData extends Record<string, unknown> {
   className: string;
   attributes: UmlAttribute[];
+  compounds: UmlCompound[];
 }
 
 export type ClassNode = Node<ClassNodeData, 'umlClass'>;
@@ -24,13 +25,19 @@ export function attributeLabel(attr: UmlAttribute): string {
   return `${attr.name} : ${attr.type}${attr.isArray ? '[]' : ''}`;
 }
 
+export function compoundLabel(compound: UmlCompound): string {
+  return `${compound.name} : ${compound.type}`;
+}
+
 function nodeSize(data: ClassNodeData): { width: number; height: number } {
   const textLengths = [
     data.className.length + 2,
     ...data.attributes.map((a) => attributeLabel(a).length),
+    ...data.compounds.map((c) => compoundLabel(c).length),
   ];
   const width = Math.max(MIN_WIDTH, Math.max(...textLengths) * CHAR_WIDTH + H_PADDING);
-  const height = HEADER_HEIGHT + Math.max(1, data.attributes.length) * ROW_HEIGHT;
+  const rowCount = data.attributes.length + data.compounds.length;
+  const height = HEADER_HEIGHT + Math.max(1, rowCount) * ROW_HEIGHT;
   return { width, height };
 }
 
@@ -44,6 +51,7 @@ export async function layoutModel(model: Model): Promise<DiagramData> {
   const nodeData = Array.from(model.classes.values()).map((umlClass) => ({
     className: umlClass.name,
     attributes: Array.from(umlClass.attributes.values()),
+    compounds: Array.from(umlClass.compounds.values()),
   }));
 
   const elkGraph = {

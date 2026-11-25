@@ -1,5 +1,10 @@
 import { load } from 'js-yaml';
-import { ModelError, type AttributeTypeMapping, type MappingConfig } from './types';
+import {
+  ModelError,
+  type AttributeTypeMapping,
+  type CompoundMapping,
+  type MappingConfig,
+} from './types';
 
 /**
  * Parses mapping.yaml content (AC2) and validates its structure.
@@ -34,7 +39,23 @@ export function parseMapping(yamlText: string): MappingConfig {
     }
     types.set(typeName, { type, arrayFlag, chars: charsNode as string[] });
   }
-  return { types };
+  return { types, compound: parseCompoundMapping(root) };
+}
+
+function parseCompoundMapping(root: Record<string, unknown>): CompoundMapping | undefined {
+  if (!('TcCompoundPropertyRule' in root)) {
+    return undefined;
+  }
+  const entry = asRecord(root['TcCompoundPropertyRule'], 'TcCompoundPropertyRule');
+  const type = entry['type'];
+  if (typeof type !== 'string' || type === '') {
+    throw new ModelError('mapping.yaml: TcCompoundPropertyRule has no "type" value');
+  }
+  const charsNode = entry['chars'] ?? [];
+  if (!Array.isArray(charsNode) || charsNode.some((c) => typeof c !== 'string')) {
+    throw new ModelError('mapping.yaml: TcCompoundPropertyRule has an invalid "chars" list');
+  }
+  return { type, chars: charsNode as string[] };
 }
 
 function asRecord(value: unknown, what: string): Record<string, unknown> {

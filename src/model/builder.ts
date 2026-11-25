@@ -4,14 +4,16 @@ import {
   type Model,
   type ParsedFile,
   type RawAttribute,
+  type RawCompoundRule,
   type UmlAttribute,
   type UmlClass,
 } from './types';
 
 /**
- * Builds the intermediate model from parsed files (NF1-NF7), enforcing the
+ * Builds the intermediate model from parsed files (NF1-NF8), enforcing the
  * input validation rules (IV1-IV4):
- * - duplicate attribute names within a class abort with ModelError (IV1);
+ * - duplicate property names within a class (attributes and compound
+ *   properties combined) abort with ModelError (IV1);
  * - two different non-empty parents for a class abort with ModelError (IV2);
  * - attributes with an attributeType missing from the mapping are silently
  *   skipped (IV3).
@@ -35,6 +37,11 @@ export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
         addAttribute(umlClass, rawAttr, mapping, file.fileName);
       }
     }
+    // NF8: TcCompoundPropertyRule adds compound properties to the dest class.
+    for (const rule of file.compoundRules) {
+      const umlClass = getOrCreateClass(model, rule.destTypeName);
+      addCompound(umlClass, rule, mapping, file.fileName);
+    }
   }
 
   // NF4: ensure referenced parents exist as classes.
@@ -43,6 +50,7 @@ export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
       model.classes.set(umlClass.parent, {
         name: umlClass.parent,
         attributes: new Map(),
+        compounds: new Map(),
       });
     }
   }
@@ -53,7 +61,7 @@ export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
 function getOrCreateClass(model: Model, name: string): UmlClass {
   let umlClass = model.classes.get(name);
   if (!umlClass) {
-    umlClass = { name, attributes: new Map() };
+    umlClass = { name, attributes: new Map(), compounds: new Map() };
     model.classes.set(name, umlClass);
   }
   return umlClass;
@@ -84,11 +92,7 @@ function addAttribute(
   if (!typeMapping) {
     return; // IV3: unknown attribute types are silently ignored.
   }
-  if (umlClass.attributes.has(rawAttr.name)) {
-    throw new ModelError(
-      `${fileName}: class "${umlClass.name}" has a duplicate attribute "${rawAttr.name}" (IV1)`,
-    );
-  }
+  requireUniqueName(umlClass, rawAttr.name, fileName);
 
   const arrayFlagValue = rawAttr.xmlAttributes[typeMapping.arrayFlag];
   const chars: Record<string, string> = {};
@@ -108,4 +112,40 @@ function addAttribute(
     chars,
   };
   umlClass.attributes.set(attribute.name, attribute);
+}
+
+/** NF8, IV1: maps and adds one compound property to a class. */
+function addCompound(
+  umlClass: UmlClass,
+  rule: RawCompoundRule,
+  mapping: MappingConfig,
+  fileName: string,
+): void {
+  if (!mapping.compound) {
+    return; // No compound mapping configured: rules are skipped.
+  }
+  requireUniqueName(umlClass, rule.destPropertyName, fileName);
+
+  const chars: Record<string, string> = {};
+  for (const charName of mapping.compound.chars) {
+    const value = rule.xmlAttributes[charName];
+    if (value !== undefined && value !== '') {
+      chars[charName] = value; // AR2: omit missing or empty characteristics.
+    }
+  }
+
+  umlClass.compounds.set(rule.destPropertyName, {
+    name: rule.destPropertyName,
+    type: mapping.compound.type,
+    chars,
+  });
+}
+
+/** IV1: property names are unique across attributes and compound properties. */
+function requireUniqueName(umlClass: UmlClass, name: string, fileName: string): void {
+  if (umlClass.attributes.has(name) || umlClass.compounds.has(name)) {
+    throw new ModelError(
+      `${fileName}: class "${umlClass.name}" has a duplicate property "${name}" (IV1)`,
+    );
+  }
 }

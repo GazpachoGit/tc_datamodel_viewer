@@ -1,15 +1,14 @@
 import { createContext, useContext } from 'react';
-import type { UmlAttribute } from '../model/types';
+import type { UmlAttribute, UmlCompound } from '../model/types';
 
-/** The attribute currently selected in the diagram (UI4). */
-export interface SelectedAttribute {
-  className: string;
-  attribute: UmlAttribute;
-}
+/** The attribute or compound property currently selected in the diagram (UI4). */
+export type SelectedProperty =
+  | { className: string; kind: 'attribute'; attribute: UmlAttribute }
+  | { className: string; kind: 'compound'; compound: UmlCompound };
 
 export interface SelectionState {
-  selected: SelectedAttribute | null;
-  select: (selection: SelectedAttribute) => void;
+  selected: SelectedProperty | null;
+  select: (selection: SelectedProperty) => void;
 }
 
 export const SelectionContext = createContext<SelectionState>({
@@ -19,4 +18,9 @@ export const SelectionContext = createContext<SelectionState>({
 
 export function useSelection(): SelectionState {
   return useContext(SelectionContext);
+}
+
+/** Name of the selected property, regardless of its kind. */
+export function selectedName(selected: SelectedProperty): string {
+  return selected.kind === 'attribute' ? selected.attribute.name : selected.compound.name;
 }

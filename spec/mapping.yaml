@@ -34,3 +34,7 @@ TcAttribute:
     POM_untyped_reference:
       type: UntypedReference
       array_flag: isArray
+TcCompoundPropertyRule:
+  type: Compound
+  chars:
+    - pathToSource

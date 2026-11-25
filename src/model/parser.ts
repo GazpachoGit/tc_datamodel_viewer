@@ -4,6 +4,7 @@ import {
   type RawAttribute,
   type RawAttributeAttach,
   type RawClass,
+  type RawCompoundRule,
 } from './types';
 
 /** Teamcenter business model namespace (AC1). */
@@ -39,7 +40,20 @@ export function parseTcXml(fileName: string, xmlText: string): ParsedFile {
     attaches.push({ className, attributes: childAttributes(el, fileName) });
   }
 
-  return { fileName, classes, attaches };
+  const compoundRules: RawCompoundRule[] = [];
+  for (const el of byTag(doc, 'TcCompoundPropertyRule')) {
+    const xmlAttributes: Record<string, string> = {};
+    for (const attr of Array.from(el.attributes)) {
+      xmlAttributes[attr.name] = attr.value;
+    }
+    compoundRules.push({
+      destTypeName: requireAttr(el, 'destTypeName', fileName),
+      destPropertyName: requireAttr(el, 'destPropertyName', fileName),
+      xmlAttributes,
+    });
+  }
+
+  return { fileName, classes, attaches, compoundRules };
 }
 
 function byTag(doc: Document, localName: string): Element[] {

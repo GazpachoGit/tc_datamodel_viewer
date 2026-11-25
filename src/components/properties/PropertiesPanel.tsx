@@ -1,15 +1,15 @@
 import { useSelection } from '../../app/selection';
 
 /**
- * Properties panel for the selected attribute (UI5, AR1): attribute name,
- * mapped type, array flag under its original XML name, and non-empty
- * characteristics, one `name : value` line each.
+ * Properties panel for the selected attribute (UI5, AR1) or compound
+ * property (AR2): one `name : value` line each, original XML names for
+ * characteristics, non-empty values only.
  */
 export function PropertiesPanel() {
   const { selected } = useSelection();
 
   let rows: Array<[string, string]> = [];
-  if (selected) {
+  if (selected?.kind === 'attribute') {
     const attr = selected.attribute;
     rows = [
       ['attributeName', attr.name],
@@ -19,6 +19,13 @@ export function PropertiesPanel() {
       rows.push([attr.arrayFlagName, attr.arrayFlagValue]);
     }
     rows.push(...Object.entries(attr.chars));
+  } else if (selected?.kind === 'compound') {
+    const compound = selected.compound;
+    rows = [
+      ['destPropertyName', compound.name],
+      ['type', compound.type],
+      ...Object.entries(compound.chars),
+    ];
   }
 
   return (

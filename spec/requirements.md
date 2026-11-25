@@ -30,9 +30,11 @@ selected attributes in a properties panel.
 
 ## Input validation
 
-- **IV1.** A duplicate attribute definition — the same `attributeName`
-   appearing more than once for the same class, across all `TcClass` and
-   `TcAttributeAttach` elements in all input files — is invalid input.
+- **IV1.** A duplicate property definition — the same name appearing more than
+   once among the attributes (`attributeName`) and compound properties
+   (`destPropertyName`) of the same class, across all `TcClass`,
+   `TcAttributeAttach` and `TcCompoundPropertyRule` elements in all input
+   files — is invalid input.
 - **IV2.** Conflicting parents — two different non-empty `parentClassName`
    values for the same class — are invalid input. An absent or empty
    `parentClassName` does not conflict with a non-empty one; a class created
@@ -68,6 +70,10 @@ selected attributes in a properties panel.
   <TcAttribute attributeName="reference" attributeType="POM_untyped_reference"
                isArray="false"/>
 </TcClass>
+<TcCompoundPropertyRule xmlns="http://teamcenter.com/BusinessModel/TcBusinessData"
+    destTypeName="Example" destPropertyName="approver_group"
+    sourceTypeName="GroupMember" sourcePropertyName="group" isReadOnly="true"
+    pathToSource="REF(approver,GroupMember).group"/>
 ```
 
 ## User interface
@@ -79,6 +85,8 @@ selected attributes in a properties panel.
 - **UI3.** Each class node is rendered in a style similar to UML class
    notation. It contains the class name and a list of attributes showing each
    attribute's name, mapped type, and array marker when applicable.
+   Compound properties are rendered after the attributes as `name : Compound`
+   rows without an array marker.
    Attribute characteristics are not shown in the class node; they are shown
    in the properties panel.
 
@@ -95,11 +103,12 @@ selected attributes in a properties panel.
      description : LongString
      approver : TypedReference
      reference : UntypedReference
+     approver_group : Compound
    }
    ```
-- **UI4.** The user can select an attribute in the diagram. The properties
-   panel displays the properties of the selected attribute. Classes cannot be
-   selected.
+- **UI4.** The user can select an attribute or a compound property in the
+   diagram. The properties panel displays the properties of the selected
+   item. Classes cannot be selected.
 - **UI5.** When an attribute is selected, the properties panel displays its
    characteristics as defined by the attribute mapping.
 
@@ -143,6 +152,23 @@ isArray : false
 typedRefClassName : GroupMember
 ```
 
+#### Compound property representation
+
+- **AR2.** When a compound property is selected, the properties panel lists
+   its name, mapped type, and mapped characteristics. Display each item on a
+   separate line in the format `<property name> : <value>`. Use
+   `destPropertyName` for the property name, `type` for its mapped type, and
+   the original XML names for characteristics listed in `chars`. There is no
+   array flag line. Omit missing or empty characteristics.
+
+Properties panel for the selected `approver_group` compound property:
+
+```text
+destPropertyName : approver_group
+type : Compound
+pathToSource : REF(approver,GroupMember).group
+```
+
 ## Use case: Build the intermediate model
 
 ### Normal flow
@@ -167,3 +193,9 @@ typedRefClassName : GroupMember
    or create it if it does not exist. Add each nested `TcAttribute` to that
    class using the attribute mappings. IV1 and IV3 apply to these attributes
    as well.
+- **NF8.** For each `TcCompoundPropertyRule`, find the UML class named by its
+   `destTypeName`, or create it if it does not exist. Add a compound property
+   named by `destPropertyName` to that class, applying the
+   `TcCompoundPropertyRule` mapping from [mapping.yaml](./mapping.yaml) for
+   its type and characteristics. Other XML attributes of the rule are not
+   displayed. IV1 applies to compound properties as well.
