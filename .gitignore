@@ -2,6 +2,3 @@
 /~$Agent.docx
 /examples/
 /spec/to_do.md
-/.venv/
-__pycache__/
-*.egg-info/
