@@ -239,6 +239,54 @@ describe('buildModel', () => {
         </TcBusinessData>`),
     ).toThrowError(new ModelError('file0.xml: class "C" has a duplicate property "p" (IV1)'));
   });
+
+  it('connects primary classes to relation classes (NF9)', () => {
+    const model = build(`
+      <TcBusinessData xmlns="${NS}">
+        <TcStandardType typeName="Primary" parentTypeName="ItemRevision">
+          <TcProperty propName="MyRel" propTypeName="Relation" isArray="true"/>
+          <TcProperty propName="other" propTypeName="Runtime"/>
+        </TcStandardType>
+        <TcPropertyAttach typeName="Attached">
+          <TcProperty propName="MyRel" propTypeName="Relation" isArray="true"/>
+        </TcPropertyAttach>
+      </TcBusinessData>`);
+    // Primary, Attached and the relation class MyRel are created when missing.
+    expect(Array.from(model.classes.get('Primary')!.relations)).toEqual(['MyRel']);
+    expect(Array.from(model.classes.get('Attached')!.relations)).toEqual(['MyRel']);
+    expect(model.classes.get('MyRel')).toBeDefined();
+    // Non-Relation properties are ignored.
+    expect(model.classes.get('other')).toBeUndefined();
+  });
+
+  it('ignores relation properties outside TcStandardType and TcPropertyAttach (NF9)', () => {
+    const model = build(`
+      <TcBusinessData xmlns="${NS}">
+        <TcForm typeName="F">
+          <TcProperty propName="FormRel" propTypeName="Relation"/>
+        </TcForm>
+      </TcBusinessData>`);
+    expect(model.classes.size).toBe(0);
+  });
+
+  it('rejects duplicate primary-relation pairs (IV5)', () => {
+    expect(() =>
+      build(
+        `<TcBusinessData xmlns="${NS}">
+           <TcStandardType typeName="Primary">
+             <TcProperty propName="MyRel" propTypeName="Relation"/>
+           </TcStandardType>
+         </TcBusinessData>`,
+        `<TcBusinessData xmlns="${NS}">
+           <TcPropertyAttach typeName="Primary">
+             <TcProperty propName="MyRel" propTypeName="Relation"/>
+           </TcPropertyAttach>
+         </TcBusinessData>`,
+      ),
+    ).toThrowError(
+      new ModelError('file1.xml: class "Primary" has a duplicate relation "MyRel" (IV5)'),
+    );
+  });
 });
 
 describe('parseTcXml', () => {

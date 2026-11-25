@@ -10,13 +10,14 @@ import {
 } from './types';
 
 /**
- * Builds the intermediate model from parsed files (NF1-NF8), enforcing the
- * input validation rules (IV1-IV4):
+ * Builds the intermediate model from parsed files (NF1-NF9), enforcing the
+ * input validation rules (IV1-IV5):
  * - duplicate property names within a class (attributes and compound
  *   properties combined) abort with ModelError (IV1);
  * - two different non-empty parents for a class abort with ModelError (IV2);
  * - attributes with an attributeType missing from the mapping are silently
- *   skipped (IV3).
+ *   skipped (IV3);
+ * - duplicate primary-relation pair declarations abort with ModelError (IV5).
  */
 export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
   const model: Model = { classes: new Map() };
@@ -42,6 +43,18 @@ export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
       const umlClass = getOrCreateClass(model, rule.destTypeName);
       addCompound(umlClass, rule, mapping, file.fileName);
     }
+    // NF9: relation properties connect the primary class to a relation class.
+    for (const rel of file.relationProperties) {
+      const primary = getOrCreateClass(model, rel.primaryTypeName);
+      getOrCreateClass(model, rel.propName);
+      if (primary.relations.has(rel.propName)) {
+        throw new ModelError(
+          `${file.fileName}: class "${primary.name}" has a duplicate relation ` +
+            `"${rel.propName}" (IV5)`,
+        );
+      }
+      primary.relations.add(rel.propName);
+    }
   }
 
   // NF4: ensure referenced parents exist as classes.
@@ -51,6 +64,7 @@ export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
         name: umlClass.parent,
         attributes: new Map(),
         compounds: new Map(),
+        relations: new Set(),
       });
     }
   }
@@ -61,7 +75,7 @@ export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
 function getOrCreateClass(model: Model, name: string): UmlClass {
   let umlClass = model.classes.get(name);
   if (!umlClass) {
-    umlClass = { name, attributes: new Map(), compounds: new Map() };
+    umlClass = { name, attributes: new Map(), compounds: new Map(), relations: new Set() };
     model.classes.set(name, umlClass);
   }
   return umlClass;

@@ -43,6 +43,12 @@ export interface UmlClass {
   attributes: Map<string, UmlAttribute>;
   /** Compound properties keyed by name, in insertion order. */
   compounds: Map<string, UmlCompound>;
+  /**
+   * Names of relation classes owned by this class as primary (NF9). The
+   * relation property name always equals the relation class name and refers
+   * to a regular class in `Model.classes`.
+   */
+  relations: Set<string>;
 }
 
 /** The merged model built from all input files (DM2). */
@@ -106,6 +112,14 @@ export interface RawCompoundRule {
   xmlAttributes: Record<string, string>;
 }
 
+/** A relation TcProperty found in a TcStandardType or TcPropertyAttach (NF9). */
+export interface RawRelationProperty {
+  /** `typeName` of the enclosing element: the primary class. */
+  primaryTypeName: string;
+  /** `propName` of the property: the relation class name. */
+  propName: string;
+}
+
 /** Relevant content of one parsed XML file. */
 export interface ParsedFile {
   /** File name, used in error messages. */
@@ -113,6 +127,7 @@ export interface ParsedFile {
   classes: RawClass[];
   attaches: RawAttributeAttach[];
   compoundRules: RawCompoundRule[];
+  relationProperties: RawRelationProperty[];
 }
 
 /** Invalid input (IV1, IV2) or malformed file detected while building the model. */

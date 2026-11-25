@@ -42,9 +42,13 @@ selected attributes in a properties panel.
 - **IV3.** A `TcAttribute` whose `attributeType` is not defined in
    [mapping.yaml](./mapping.yaml) is silently ignored: it is not added to the
    model and does not appear in the diagram or the properties panel.
-- **IV4.** When invalid input (IV1, IV2) is detected, the viewer aborts
+- **IV4.** When invalid input (IV1, IV2, IV5) is detected, the viewer aborts
    building the model and displays only an error message identifying the
-   offending class and the duplicate attribute or conflicting parents.
+   offending class and the duplicate property, conflicting parents, or
+   duplicate relation.
+- **IV5.** A duplicate relation declaration — the same primary class and
+   relation class pair declared more than once across all `TcStandardType`
+   and `TcPropertyAttach` elements in all input files — is invalid input.
 
 ## Example input
 
@@ -74,6 +78,16 @@ selected attributes in a properties panel.
     destTypeName="Example" destPropertyName="approver_group"
     sourceTypeName="GroupMember" sourcePropertyName="group" isReadOnly="true"
     pathToSource="REF(approver,GroupMember).group"/>
+<TcStandardType xmlns="http://teamcenter.com/BusinessModel/TcBusinessData"
+    typeName="ExampleRevision" parentTypeName="ItemRevision">
+  <TcProperty propName="ExampleRelation" propTypeName="Relation"
+              propValueType="PROP_untyped_relation" isArray="true"/>
+</TcStandardType>
+<TcPropertyAttach xmlns="http://teamcenter.com/BusinessModel/TcBusinessData"
+    typeName="WorkspaceObject">
+  <TcProperty propName="ExampleRelation" propTypeName="Relation"
+              propValueType="PROP_untyped_relation" isArray="true"/>
+</TcPropertyAttach>
 ```
 
 ## User interface
@@ -81,7 +95,9 @@ selected attributes in a properties panel.
 - **UI1.** The UI contains two areas: a UML-like class diagram and a properties
    panel.
 - **UI2.** The diagram connects parent and child classes with inheritance
-   relations.
+   relations. Relation connections (NF9) are rendered as dashed edges with an
+   arrow pointing from the primary class to the relation class, visually
+   distinct from inheritance relations.
 - **UI3.** Each class node is rendered in a style similar to UML class
    notation. It contains the class name and a list of attributes showing each
    attribute's name, mapped type, and array marker when applicable.
@@ -199,3 +215,12 @@ pathToSource : REF(approver,GroupMember).group
    `TcCompoundPropertyRule` mapping from [mapping.yaml](./mapping.yaml) for
    its type and characteristics. Other XML attributes of the rule are not
    displayed. IV1 applies to compound properties as well.
+- **NF9.** For each `TcProperty` with `propTypeName="Relation"` nested in a
+   `TcStandardType` or `TcPropertyAttach` element, the property's `propName`
+   is the name of a relation class. Find that UML class, or create it if it
+   does not exist. Find the UML class named by the enclosing element's
+   `typeName` (the primary class), or create it if it does not exist. Add the
+   relation class name to the primary class's relations; a repeated
+   declaration of the same pair is invalid input (IV5). `TcProperty` elements
+   in other contexts and their other XML attributes are ignored; relation
+   properties are not rendered as rows in the primary class node.

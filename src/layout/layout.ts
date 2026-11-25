@@ -54,6 +54,24 @@ export async function layoutModel(model: Model): Promise<DiagramData> {
     compounds: Array.from(umlClass.compounds.values()),
   }));
 
+  const classes = Array.from(model.classes.values());
+
+  // Inheritance edges (UI2) and relation edges (NF9), kept apart for styling.
+  const inheritanceEdges = classes
+    .filter((c) => c.parent)
+    .map((c) => ({
+      id: `${c.name}-inherits-${c.parent}`,
+      sources: [c.name],
+      targets: [c.parent as string],
+    }));
+  const relationEdges = classes.flatMap((c) =>
+    Array.from(c.relations).map((relationName) => ({
+      id: `${c.name}-relation-${relationName}`,
+      sources: [c.name],
+      targets: [relationName],
+    })),
+  );
+
   const elkGraph = {
     id: 'root',
     layoutOptions: {
@@ -63,13 +81,7 @@ export async function layoutModel(model: Model): Promise<DiagramData> {
       'elk.layered.spacing.nodeNodeBetweenLayers': '60',
     },
     children: nodeData.map((data) => ({ id: data.className, ...nodeSize(data) })),
-    edges: Array.from(model.classes.values())
-      .filter((c) => c.parent)
-      .map((c) => ({
-        id: `${c.name}->${c.parent}`,
-        sources: [c.name],
-        targets: [c.parent as string],
-      })),
+    edges: [...inheritanceEdges, ...relationEdges],
   };
 
   const laidOut = await elk.layout(elkGraph);
@@ -86,13 +98,23 @@ export async function layoutModel(model: Model): Promise<DiagramData> {
     selectable: false,
   }));
 
-  const edges: Edge[] = (elkGraph.edges ?? []).map((edge) => ({
-    id: edge.id,
-    source: edge.sources[0],
-    target: edge.targets[0],
-    type: 'straight',
-    markerEnd: 'url(#uml-inheritance)',
-  }));
+  const edges: Edge[] = [
+    ...inheritanceEdges.map((edge) => ({
+      id: edge.id,
+      source: edge.sources[0],
+      target: edge.targets[0],
+      type: 'straight',
+      markerEnd: 'url(#uml-inheritance)',
+    })),
+    ...relationEdges.map((edge) => ({
+      id: edge.id,
+      source: edge.sources[0],
+      target: edge.targets[0],
+      type: 'straight',
+      className: 'edge-relation',
+      markerEnd: 'url(#uml-relation)',
+    })),
+  ];
 
   return { nodes, edges };
 }

@@ -23,6 +23,24 @@ export function Diagram({ nodes, edges }: DiagramData) {
           >
             <path d="M 1 1 L 17 9 L 1 17 Z" fill="#ffffff" stroke="#4a5568" strokeWidth="1.5" />
           </marker>
+          {/* Open arrow for relation connections (UI2, NF9). */}
+          <marker
+            id="uml-relation"
+            viewBox="0 0 14 14"
+            markerWidth="14"
+            markerHeight="14"
+            refX="12"
+            refY="7"
+            orient="auto"
+          >
+            <path
+              d="M 2 2 L 12 7 L 2 12"
+              fill="none"
+              stroke="#805ad5"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </marker>
         </defs>
       </svg>
       <ReactFlow

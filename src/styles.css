@@ -33,6 +33,12 @@ body,
   stroke-width: 1.5;
 }
 
+/* Relation connections (UI2, NF9): dashed, visually distinct. */
+.edge-relation .react-flow__edge-path {
+  stroke: #805ad5;
+  stroke-dasharray: 7 5;
+}
+
 /* UML class node (UI3) */
 
 .uml-class {

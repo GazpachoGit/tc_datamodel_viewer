@@ -5,6 +5,7 @@ import {
   type RawAttributeAttach,
   type RawClass,
   type RawCompoundRule,
+  type RawRelationProperty,
 } from './types';
 
 /** Teamcenter business model namespace (AC1). */
@@ -53,7 +54,26 @@ export function parseTcXml(fileName: string, xmlText: string): ParsedFile {
     });
   }
 
-  return { fileName, classes, attaches, compoundRules };
+  // NF9: relation TcProperty elements in TcStandardType and TcPropertyAttach.
+  const relationProperties: RawRelationProperty[] = [];
+  for (const contextName of ['TcStandardType', 'TcPropertyAttach']) {
+    for (const el of byTag(doc, contextName)) {
+      for (const child of Array.from(el.children)) {
+        if (
+          child.namespaceURI === TC_NAMESPACE &&
+          child.localName === 'TcProperty' &&
+          child.getAttribute('propTypeName') === 'Relation'
+        ) {
+          relationProperties.push({
+            primaryTypeName: requireAttr(el, 'typeName', fileName),
+            propName: requireAttr(child, 'propName', fileName),
+          });
+        }
+      }
+    }
+  }
+
+  return { fileName, classes, attaches, compoundRules, relationProperties };
 }
 
 function byTag(doc: Document, localName: string): Element[] {
