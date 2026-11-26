@@ -2,6 +2,26 @@
  * Intermediate data model (spec/model.md, DM1-DM2) and related types.
  */
 
+/** One value of an LOV definition, from TcLOVValue (NF11). */
+export interface LovValue {
+  value: string;
+  /** Description; empty is displayed as `NA` (AR4). */
+  description: string;
+}
+
+/** One LOV attachment of an attribute, from TcLOVAttach (NF11). */
+export interface AttributeLov {
+  /** LOV name from `lovName`. */
+  name: string;
+  /** Condition from `conditionName`. */
+  condition: string;
+  /**
+   * Values of the first matching TcLOV definition, in input order.
+   * Undefined when no definition was found (AR4 shows a message).
+   */
+  values?: LovValue[];
+}
+
 /** One attribute of a UML class (DM2). */
 export interface UmlAttribute {
   /** Attribute name from `attributeName`. */
@@ -19,6 +39,8 @@ export interface UmlAttribute {
    * names, in mapping order. Missing or empty values are omitted (AR1).
    */
   chars: Record<string, string>;
+  /** LOV attachments of this attribute, in input order (NF11). */
+  lovs: AttributeLov[];
 }
 
 /** One compound property of a UML class, from TcCompoundPropertyRule (NF8). */
@@ -148,6 +170,24 @@ export interface RawGrmRule {
   xmlAttributes: Record<string, string>;
 }
 
+/** One TcLOVAttachPropertyInfo within a TcLOVAttach, flattened (NF11). */
+export interface RawLovAttach {
+  /** `typeName` of the TcLOVAttach: the class to look up. */
+  typeName: string;
+  /** `lovName` of the TcLOVAttach. */
+  lovName: string;
+  /** `valuePropertyName` of the info: the attribute to look up. */
+  valuePropertyName: string;
+  /** `conditionName` of the info. */
+  conditionName: string;
+}
+
+/** A TcLOV definition (NF11). */
+export interface RawLovDefinition {
+  name: string;
+  values: LovValue[];
+}
+
 /** Relevant content of one parsed XML file. */
 export interface ParsedFile {
   /** File name, used in error messages. */
@@ -157,6 +197,8 @@ export interface ParsedFile {
   compoundRules: RawCompoundRule[];
   relationProperties: RawRelationProperty[];
   grmRules: RawGrmRule[];
+  lovAttaches: RawLovAttach[];
+  lovDefinitions: RawLovDefinition[];
 }
 
 /** Invalid input (IV1, IV2) or malformed file detected while building the model. */

@@ -347,6 +347,81 @@ describe('buildModel', () => {
       ),
     );
   });
+
+  it('attaches LOVs to attributes with values from the first definition (NF11)', () => {
+    const model = build(
+      `<TcBusinessData xmlns="${NS}">
+         <TcClass className="C">
+           <TcAttribute attributeName="a" attributeType="POM_string" isArray="false"/>
+         </TcClass>
+         <TcLOVAttach lovName="MyLOV" typeName="C">
+           <TcLOVAttachPropertyInfo valuePropertyName="a" conditionName="isTrue"/>
+         </TcLOVAttach>
+         <TcLOVAttach lovName="OrphanLOV" typeName="C">
+           <TcLOVAttachPropertyInfo valuePropertyName="a" conditionName="isTrue"/>
+         </TcLOVAttach>
+         <TcLOV name="MyLOV" lovType="ListOfValuesString">
+           <TcLOVValue value="v1" description="first"/>
+           <TcLOVValue value="v2" description=""/>
+         </TcLOV>
+       </TcBusinessData>`,
+      `<TcBusinessData xmlns="${NS}">
+         <TcLOV name="MyLOV" lovType="ListOfValuesString">
+           <TcLOVValue value="other" description="loses to first definition"/>
+         </TcLOV>
+       </TcBusinessData>`,
+    );
+    const lovs = model.classes.get('C')!.attributes.get('a')!.lovs;
+    expect(lovs).toEqual([
+      {
+        name: 'MyLOV',
+        condition: 'isTrue',
+        values: [
+          { value: 'v1', description: 'first' },
+          { value: 'v2', description: '' },
+        ],
+      },
+      // Missing TcLOV definition: record kept without values.
+      { name: 'OrphanLOV', condition: 'isTrue', values: undefined },
+    ]);
+  });
+
+  it('silently skips LOV attaches to unknown classes or attributes (NF11)', () => {
+    const model = build(`
+      <TcBusinessData xmlns="${NS}">
+        <TcClass className="C">
+          <TcAttribute attributeName="a" attributeType="POM_string" isArray="false"/>
+        </TcClass>
+        <TcLOVAttach lovName="L1" typeName="NoSuchClass">
+          <TcLOVAttachPropertyInfo valuePropertyName="a" conditionName="isTrue"/>
+        </TcLOVAttach>
+        <TcLOVAttach lovName="L2" typeName="C">
+          <TcLOVAttachPropertyInfo valuePropertyName="inherited" conditionName="isTrue"/>
+        </TcLOVAttach>
+      </TcBusinessData>`);
+    expect(model.classes.get('C')!.attributes.get('a')!.lovs).toEqual([]);
+    expect(model.classes.get('NoSuchClass')).toBeUndefined();
+  });
+
+  it('rejects duplicate LOV attaches (IV7)', () => {
+    expect(() =>
+      build(`
+        <TcBusinessData xmlns="${NS}">
+          <TcClass className="C">
+            <TcAttribute attributeName="a" attributeType="POM_string" isArray="false"/>
+          </TcClass>
+          <TcLOVAttach lovName="MyLOV" typeName="C">
+            <TcLOVAttachPropertyInfo valuePropertyName="a" conditionName="isTrue"/>
+            <TcLOVAttachPropertyInfo valuePropertyName="a" conditionName="isTrue"/>
+          </TcLOVAttach>
+        </TcBusinessData>`),
+    ).toThrowError(
+      new ModelError(
+        'file0.xml: attribute "C.a" has a duplicate LOV attach ' +
+          '(lovName "MyLOV", conditionName "isTrue") (IV7)',
+      ),
+    );
+  });
 });
 
 describe('parseTcXml', () => {

@@ -42,10 +42,10 @@ selected attributes in a properties panel.
 - **IV3.** A `TcAttribute` whose `attributeType` is not defined in
    [mapping.yaml](./mapping.yaml) is silently ignored: it is not added to the
    model and does not appear in the diagram or the properties panel.
-- **IV4.** When invalid input (IV1, IV2, IV5, IV6) is detected, the viewer
-   aborts building the model and displays only an error message identifying
-   the offending class and the duplicate property, conflicting parents,
-   duplicate relation, or duplicate GRM rule.
+- **IV4.** When invalid input (IV1, IV2, IV5, IV6, IV7) is detected, the
+   viewer aborts building the model and displays only an error message
+   identifying the offending class and the duplicate property, conflicting
+   parents, duplicate relation, duplicate GRM rule, or duplicate LOV attach.
 - **IV5.** A duplicate relation declaration — the same primary class and
    relation class pair declared more than once across all `TcStandardType`
    and `TcPropertyAttach` elements in all input files — is invalid input.
@@ -53,6 +53,9 @@ selected attributes in a properties panel.
    composite identifier (`primaryTypeName`, `secondaryTypeName`,
    `conditionName`) for the same relation class, across all input files — is
    invalid input.
+- **IV7.** A duplicate LOV attach — more than one LOV attachment with the
+   same composite identifier (class attribute, `lovName`, `conditionName`),
+   across all input files — is invalid input.
 
 ## Example input
 
@@ -96,6 +99,16 @@ selected attributes in a properties panel.
     relationTypeName="ExampleRelation" primaryTypeName="ExampleRevision"
     secondaryTypeName="GroupMember" conditionName="isTrue"
     primaryCardinality="-1" secondaryCardinality="1"/>
+<TcLOVAttach xmlns="http://teamcenter.com/BusinessModel/TcBusinessData"
+    lovName="ExampleLOV" typeName="Example">
+  <TcLOVAttachPropertyInfo valuePropertyName="severity" conditionName="isTrue"
+      override="false" level="0"/>
+</TcLOVAttach>
+<TcLOV xmlns="http://teamcenter.com/BusinessModel/TcBusinessData"
+    name="ExampleLOV" lovType="ListOfValuesString" usage="Exhaustive">
+  <TcLOVValue value="1" description="low" conditionName="isTrue"/>
+  <TcLOVValue value="10" description="" conditionName="isTrue"/>
+</TcLOV>
 ```
 
 ## User interface
@@ -140,6 +153,10 @@ selected attributes in a properties panel.
    not rendered in the diagram. The class remains part of the model.
 - **UI7.** Relation class nodes — classes whose direct parent is
    `ImanRelation` — are rendered in a distinct color.
+- **UI8.** The properties panel contains two tabs: **Main** and **LOV**.
+   Main is the default tab and displays the content defined by AR1–AR3. The
+   LOV tab is shown only while the selected item is an attribute with a
+   non-empty list of LOV attachments and displays the content defined by AR4.
 
 ### Properties Panel
 
@@ -221,6 +238,35 @@ primaryCardinality : -1
 secondaryCardinality : 1
 ```
 
+#### LOV representation
+
+- **AR4.** The LOV tab lists the LOV attachments of the selected attribute,
+   one block per attachment. Each block displays `lovName` and
+   `conditionName` as `<property name> : <value>` lines, followed by a
+   `values:` line and one line per value in the format
+   `<value> : <description>`; an empty description is displayed as `NA`.
+   Values keep their input order. When the LOV definition was not found
+   (NF11), the block displays a `LOV "<lovName>" not found` message instead
+   of the values.
+
+LOV tab for the selected `severity` attribute:
+
+```text
+lovName : ExampleLOV
+conditionName : isTrue
+values:
+1 : low
+10 : NA
+```
+
+LOV tab block for an attachment whose `TcLOV` definition is missing:
+
+```text
+lovName : MissingLOV
+conditionName : isTrue
+LOV "MissingLOV" not found
+```
+
 ## Use case: Build the intermediate model
 
 ### Normal flow
@@ -267,3 +313,14 @@ secondaryCardinality : 1
    the original XML attribute values listed in `chars`. Rules keep their
    input order; other XML attributes of the rule are not displayed. A
    repeated composite identifier is invalid input (IV6).
+- **NF11.** After NF1–NF10 have been applied to all input files, process the
+   LOV attachments. For each `TcLOVAttach` and each of its nested
+   `TcLOVAttachPropertyInfo` elements, find the UML class named by the
+   `TcLOVAttach`'s `typeName` and that class's own attribute named by the
+   info's `valuePropertyName`; if the class or the attribute is not found,
+   silently skip the attachment. Add an LOV record with the `lovName` and
+   `conditionName` to the attribute; a repeated composite identifier is
+   invalid input (IV7). Find the first `TcLOV` whose `name` equals `lovName`,
+   in file load order, and add its nested `TcLOVValue` elements (`value`,
+   `description`) to the record in input order. When no such `TcLOV` exists,
+   the record keeps no values and is marked as not found (AR4).

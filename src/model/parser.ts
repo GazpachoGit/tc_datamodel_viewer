@@ -6,6 +6,8 @@ import {
   type RawClass,
   type RawCompoundRule,
   type RawGrmRule,
+  type RawLovAttach,
+  type RawLovDefinition,
   type RawRelationProperty,
 } from './types';
 
@@ -87,7 +89,53 @@ export function parseTcXml(fileName: string, xmlText: string): ParsedFile {
     });
   }
 
-  return { fileName, classes, attaches, compoundRules, relationProperties, grmRules };
+  // NF11: TcLOVAttach with nested TcLOVAttachPropertyInfo, flattened.
+  const lovAttaches: RawLovAttach[] = [];
+  for (const el of byTag(doc, 'TcLOVAttach')) {
+    const lovName = requireAttr(el, 'lovName', fileName);
+    const typeName = requireAttr(el, 'typeName', fileName);
+    for (const child of Array.from(el.children)) {
+      if (
+        child.namespaceURI !== TC_NAMESPACE ||
+        child.localName !== 'TcLOVAttachPropertyInfo'
+      ) {
+        continue;
+      }
+      lovAttaches.push({
+        typeName,
+        lovName,
+        valuePropertyName: requireAttr(child, 'valuePropertyName', fileName),
+        conditionName: child.getAttribute('conditionName') ?? '',
+      });
+    }
+  }
+
+  // NF11: TcLOV definitions with their TcLOVValue entries.
+  const lovDefinitions: RawLovDefinition[] = [];
+  for (const el of byTag(doc, 'TcLOV')) {
+    const values = [];
+    for (const child of Array.from(el.children)) {
+      if (child.namespaceURI !== TC_NAMESPACE || child.localName !== 'TcLOVValue') {
+        continue;
+      }
+      values.push({
+        value: requireAttr(child, 'value', fileName),
+        description: child.getAttribute('description') ?? '',
+      });
+    }
+    lovDefinitions.push({ name: requireAttr(el, 'name', fileName), values });
+  }
+
+  return {
+    fileName,
+    classes,
+    attaches,
+    compoundRules,
+    relationProperties,
+    grmRules,
+    lovAttaches,
+    lovDefinitions,
+  };
 }
 
 function byTag(doc: Document, localName: string): Element[] {

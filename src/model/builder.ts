@@ -1,5 +1,6 @@
 import {
   ModelError,
+  type LovValue,
   type MappingConfig,
   type Model,
   type ParsedFile,
@@ -22,7 +23,8 @@ export const IMAN_RELATION = 'ImanRelation';
  * - attributes with an attributeType missing from the mapping are silently
  *   skipped (IV3);
  * - duplicate primary-relation pair declarations abort with ModelError (IV5);
- * - duplicate GRM rule composite identifiers abort with ModelError (IV6).
+ * - duplicate GRM rule composite identifiers abort with ModelError (IV6);
+ * - duplicate LOV attach composite identifiers abort with ModelError (IV7).
  */
 export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
   const model: Model = { classes: new Map() };
@@ -65,6 +67,9 @@ export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
       addGrmRule(model, rule, mapping, file.fileName);
     }
   }
+
+  // NF11: after all classes and attributes are built, attach LOVs.
+  attachLovs(model, files);
 
   // NF4: ensure referenced parents exist as classes.
   for (const umlClass of Array.from(model.classes.values())) {
@@ -140,6 +145,7 @@ function addAttribute(
     arrayFlagName: typeMapping.arrayFlag,
     arrayFlagValue,
     chars,
+    lovs: [],
   };
   umlClass.attributes.set(attribute.name, attribute);
 }
@@ -223,4 +229,44 @@ function addGrmRule(
     }
   }
   umlClass.grmRules.push({ chars });
+}
+
+/** NF11, IV7: attaches LOV records to built attributes. */
+function attachLovs(model: Model, files: ParsedFile[]): void {
+  // First TcLOV definition per name wins, in file load order.
+  const definitions = new Map<string, LovValue[]>();
+  for (const file of files) {
+    for (const definition of file.lovDefinitions) {
+      if (!definitions.has(definition.name)) {
+        definitions.set(definition.name, definition.values);
+      }
+    }
+  }
+
+  for (const file of files) {
+    for (const attach of file.lovAttaches) {
+      const attribute = model.classes
+        .get(attach.typeName)
+        ?.attributes.get(attach.valuePropertyName);
+      if (!attribute) {
+        continue; // NF11: unknown class or attribute, skip silently.
+      }
+      if (
+        attribute.lovs.some(
+          (lov) => lov.name === attach.lovName && lov.condition === attach.conditionName,
+        )
+      ) {
+        throw new ModelError(
+          `${file.fileName}: attribute "${attach.typeName}.${attach.valuePropertyName}" has ` +
+            `a duplicate LOV attach (lovName "${attach.lovName}", ` +
+            `conditionName "${attach.conditionName}") (IV7)`,
+        );
+      }
+      attribute.lovs.push({
+        name: attach.lovName,
+        condition: attach.conditionName,
+        values: definitions.get(attach.lovName),
+      });
+    }
+  }
 }

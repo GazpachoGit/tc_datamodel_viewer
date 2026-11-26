@@ -23,6 +23,7 @@
     is_array: признак массива
     array_flag: XML-имя и исходное значение признака массива
     chars: характеристики
+    lovs: LOV-привязки
 
   Compound
     name: имя (destPropertyName)
@@ -31,6 +32,15 @@
 
   GRMRule
     chars: характеристики (по маппингу TcGRMRule)
+
+  LOV
+    name: имя (lovName)
+    condition: условие (conditionName)
+    values: значения (отсутствуют, если определение TcLOV не найдено)
+
+  LOVValue
+    value: значение
+    description: описание
   ```
 
 - **DM2.** Назначение полей:
@@ -63,6 +73,10 @@
     - `array_flag` — вывод признака массива в панели свойств под исходным
       XML-именем (AR1).
     - `chars` — вывод XML-имён и значений характеристик в скобках.
+    - `lovs` — упорядоченный список LOV-привязок атрибута (NF11); обнаружение
+      повторов по составному идентификатору lovName + conditionName
+      (инвалидный вход, IV7); вывод во вкладке LOV панели свойств (AR4).
+      Отдельного реестра LOV на уровне `Model` нет.
   - `Compound` — представление одного compound-свойства UML-класса
     (из `TcCompoundPropertyRule`).
     - `name` — вывод имени и обнаружение повторов.
@@ -73,4 +87,14 @@
     - `chars` — вывод XML-имён и значений характеристик по маппингу
       `TcGRMRule` (`primaryTypeName`, `secondaryTypeName`, `conditionName`,
       `primaryCardinality`, `secondaryCardinality`).
+  - `LOV` — форма одной записи списка `lovs` (не глобальный реестр), из
+    `TcLOVAttach`/`TcLOVAttachPropertyInfo`.
+    - `name` — вывод имени LOV (`lovName`) и обнаружение повторов.
+    - `condition` — вывод условия (`conditionName`) и обнаружение повторов.
+    - `values` — упорядоченный список записей `LOVValue` из первого
+      найденного `TcLOV`; отсутствует, если определение не найдено
+      (сообщение в панели, AR4).
+  - `LOVValue` — форма одного значения LOV, из `TcLOVValue`.
+    - `value` — вывод значения.
+    - `description` — вывод описания; пустое отображается как `NA`.
 
