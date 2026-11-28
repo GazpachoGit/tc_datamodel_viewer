@@ -17,6 +17,11 @@ function serverAddress(): string {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // The portable build (scripts/build-server.mjs) puts server.mjs in dist/.
+    outDir: 'dist/public',
+    emptyOutDir: true,
+  },
   server: {
     proxy: { '/api': serverAddress() },
   },

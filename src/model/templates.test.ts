@@ -114,6 +114,65 @@ describe('selectArtifacts (TL3)', () => {
   });
 });
 
+describe('main template precedence (TL3a)', () => {
+  const dep = tc(
+    'dep',
+    `
+    <TcClass className="Shared" parentClassName="DepParent">
+      <TcAttribute attributeName="size" attributeType="POM_int" isArray="false"/>
+      <TcAttribute attributeName="dep_only" attributeType="POM_date" isArray="false"/>
+    </TcClass>
+    <TcCompoundPropertyRule destTypeName="Shared" destPropertyName="calc" pathToSource="dep"/>
+    <TcLOVAttach lovName="SizeLOV" typeName="Shared">
+      <TcLOVAttachPropertyInfo valuePropertyName="size" conditionName="isTrue"/>
+    </TcLOVAttach>
+    <TcGRMRule relationTypeName="SharedRel" primaryTypeName="A" secondaryTypeName="B"
+        conditionName="isTrue" primaryCardinality="1"/>
+    `,
+  );
+  const custom = tc(
+    'custom',
+    `
+    <TcClass className="Shared" parentClassName="CustomParent">
+      <TcAttribute attributeName="size" attributeType="POM_string" isArray="false"/>
+    </TcClass>
+    <TcCompoundPropertyRule destTypeName="Shared" destPropertyName="calc" pathToSource="custom"/>
+    <TcLOVAttach lovName="SizeLOV" typeName="Shared">
+      <TcLOVAttachPropertyInfo valuePropertyName="size" conditionName="isTrue"/>
+    </TcLOVAttach>
+    <TcGRMRule relationTypeName="SharedRel" primaryTypeName="A" secondaryTypeName="B"
+        conditionName="isTrue" primaryCardinality="-1"/>
+    `,
+  );
+
+  it('keeps the main definition when a dependency repeats it', () => {
+    const model = buildModel(selectArtifacts(custom, [dep]));
+    const shared = model.classes.get('Shared')!;
+    // IV2: the main template's parent wins.
+    expect(shared.parent).toBe('CustomParent');
+    expect(model.classes.has('DepParent')).toBe(false);
+    // IV1: the main template's attribute and compound property win; others are kept.
+    expect(shared.attributes.get('size')?.type).toBe('String');
+    expect(shared.attributes.has('dep_only')).toBe(true);
+    expect(shared.compounds.get('calc')?.chars.pathToSource).toBe('custom');
+    // IV7, IV6: one LOV attachment and one GRM rule, from the main template.
+    expect(shared.attributes.get('size')?.lovs).toHaveLength(1);
+    const rules = model.classes.get('SharedRel')!.grmRules;
+    expect(rules.map((r) => r.chars.primaryCardinality)).toEqual(['-1']);
+  });
+
+  it('still rejects duplicates within one template', () => {
+    const twice = tc(
+      'twice',
+      `<TcLOVAttach lovName="L" typeName="Shared">
+         <TcLOVAttachPropertyInfo valuePropertyName="size" conditionName="isTrue"/>
+         <TcLOVAttachPropertyInfo valuePropertyName="size" conditionName="isTrue"/>
+       </TcLOVAttach>`,
+    );
+    expect(() => buildModel(selectArtifacts(twice, [dep]))).toThrowError(/\(IV7\)/);
+  });
+});
+
 describe('visibleClassNames (UI12)', () => {
   it('shows main classes, their direct parents and relation classes only', () => {
     const visible = visibleClassNames(buildMain(), main);

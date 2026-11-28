@@ -32,11 +32,20 @@ selected attributes in a properties panel.
 
 ## Input
 
-- **IN1.** The template directory is set in the server configuration
-   (`server.config.json`, field `modelDir`). Templates are not part of the
-   project or the client build. Changes to the configuration or to the
-   directory content take effect after the server is restarted. Selecting a
-   directory in the UI is not required.
+- **IN1.** The template directory is set in the server configuration file
+   `server.config.json` in the project root:
+
+   | Field | Meaning | Default |
+   |---|---|---|
+   | `modelDir` | Template directory, absolute or relative to the configuration file | required |
+   | `host` | Address the server listens on (AC3) | `127.0.0.1` |
+   | `port` | Port the server listens on | `5180` |
+
+   An unreadable configuration, an invalid field, or a missing directory
+   stops the server with a message naming the problem. Templates are not
+   part of the project or the client build. Changes to the configuration or
+   to the directory content take effect after the server is restarted.
+   Selecting a directory in the UI is not required.
 - **IN2.** The viewer processes only `*_dependency.xml` and `*_template.xml`
    files directly in that directory, without searching subdirectories (for
    example, `lang/` is ignored). A dependency file and a template file form
@@ -52,7 +61,8 @@ selected attributes in a properties panel.
    once among the attributes (`attributeName`) and compound properties
    (`destPropertyName`) of the same class, across all `TcClass`,
    `TcAttributeAttach` and `TcCompoundPropertyRule` elements in all input
-   files — is invalid input.
+   files — is invalid input. Repeats of a main template definition in a
+   dependency are resolved by TL3a. The same applies to IV2, IV6 and IV7.
 - **IV2.** Conflicting parents — two different non-empty `parentClassName`
    values for the same class — are invalid input. An absent, empty, or `NULL`
    `parentClassName` does not conflict with a non-empty one; a class created
@@ -351,6 +361,19 @@ Steps TL1–TL5 run on the server; the client receives the built model
    Relation properties (NF9) of dependency templates are not selected.
    `typedRefClassName`, `primaryTypeName`, and `secondaryTypeName` stay
    characteristics and do not select classes.
+- **TL3a.** The main template takes precedence over its dependencies. A
+   dependency artifact is not selected when the main template defines the
+   same thing:
+   - an attribute or compound property with the same name on the same class
+     (IV1);
+   - the parent of a class that the main template declares with a non-empty
+     parent (IV2);
+   - a GRM rule with the same composite identifier for the same relation
+     class (IV6);
+   - an LOV attachment with the same composite identifier (IV7).
+
+   Such repeats are therefore not invalid input. Duplicates within one
+   template, or between two dependency templates, remain invalid input.
 - **TL4.** Build the intermediate model from the selected artifacts by NF1–NF12,
    processing the main template first and then the dependency templates in
    `include` order; therefore, for NF11, a `TcLOV` of the main template takes

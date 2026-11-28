@@ -11,7 +11,7 @@ export interface AppOptions {
 }
 
 /**
- * HTTP API of the viewer (design.md, API):
+ * HTTP API of the viewer (design.md, «Контракт API»):
  * - `GET /api/templates` — template list (LT1, UI10);
  * - `GET /api/templates/:name` — built model of one template (TL1-TL6).
  * Invalid input (IV*) answers 422 with `{ message }`, an unknown template 404.

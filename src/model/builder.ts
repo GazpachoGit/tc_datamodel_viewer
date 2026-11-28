@@ -52,6 +52,11 @@ const GRM_RULE_CHARS = [
 /** Composite identifier of a GRM rule within its relation class (IV6). */
 const GRM_RULE_ID = ['primaryTypeName', 'secondaryTypeName', 'conditionName'];
 
+/** IV6: composite identifier of a GRM rule, from its raw XML values. */
+export function grmRuleKey(rule: RawGrmRule): string {
+  return GRM_RULE_ID.map((part) => rule.xmlAttributes[part] ?? '').join('\u0000');
+}
+
 /**
  * Builds the intermediate model from parsed files (NF1-NF11), converting XML
  * as described in spec/mapping.md and enforcing the input validation rules:
@@ -233,7 +238,7 @@ function addGrmRule(
   const umlClass = getOrCreateClass(model, rule.relationTypeName);
 
   // IV6: the identifier comes from the raw XML values, independent of chars.
-  const key = GRM_RULE_ID.map((part) => rule.xmlAttributes[part] ?? '').join('\u0000');
+  const key = grmRuleKey(rule);
   let seen = grmRuleIds.get(umlClass.name);
   if (!seen) {
     seen = new Set();

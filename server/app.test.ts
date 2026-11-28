@@ -1,11 +1,12 @@
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { TemplateModelDto } from '../src/model/dto';
 import type { TemplateInfo } from '../src/model/types';
 import { buildApp } from './app';
-import { PROJECT_ROOT, loadConfig } from './config';
+import { loadConfig } from './config';
 import { TemplateRepository } from './repository';
 
 const NS = 'http://teamcenter.com/BusinessModel/TcBusinessData';
@@ -114,7 +115,8 @@ describe('loadConfig', () => {
 });
 
 // Real data (gitignored): issuemgmt with its dependencies cm and foundation.
-const ISSUEMGMT_DIR = resolve(PROJECT_ROOT, 'examples/issuemgmt');
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ISSUEMGMT_DIR = resolve(REPO_ROOT, 'examples/issuemgmt');
 
 describe.skipIf(!existsSync(ISSUEMGMT_DIR))('issuemgmt template', () => {
   it('builds the model from referenced artifacts only', { timeout: 120_000 }, async () => {

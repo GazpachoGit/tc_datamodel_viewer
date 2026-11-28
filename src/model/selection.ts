@@ -1,4 +1,4 @@
-import { NO_PARENT } from './builder';
+import { NO_PARENT, grmRuleKey } from './builder';
 import type {
   Model,
   ParsedFile,
@@ -27,11 +27,18 @@ interface ClassArtifacts {
  * are kept when a selected LOV attachment names them. Relation properties
  * (NF9) of dependencies are never selected.
  *
+ * TL3a: the main template takes precedence. A dependency artifact that the
+ * main template also defines — a property of the same class (IV1), the
+ * parent of a class the main template declares with a parent (IV2), a GRM
+ * rule with the same identifier (IV6), or an LOV attachment with the same
+ * identifier (IV7) — is dropped, so it neither conflicts nor overrides.
+ *
  * Returns the main file followed by the filtered dependency files, in the
  * given order (TL4).
  */
 export function selectArtifacts(main: ParsedFile, deps: ParsedFile[]): ParsedFile[] {
   const indexes = deps.map(indexByClass);
+  const own = mainDefinitions(main);
 
   const selected = new Set<string>();
   const queue = Array.from(referencedClasses(main));
@@ -50,18 +57,19 @@ export function selectArtifacts(main: ParsedFile, deps: ParsedFile[]): ParsedFil
         return;
       }
       const target = picked[i];
-      target.classes.push(...artifacts.classes);
-      target.attaches.push(...artifacts.attaches);
-      target.compoundRules.push(...artifacts.compoundRules);
-      target.grmRules.push(...artifacts.grmRules);
-      target.lovAttaches.push(...artifacts.lovAttaches);
-      for (const rawClass of artifacts.classes) {
+      const kept = withoutMainDefinitions(artifacts, className, own);
+      target.classes.push(...kept.classes);
+      target.attaches.push(...kept.attaches);
+      target.compoundRules.push(...kept.compoundRules);
+      target.grmRules.push(...kept.grmRules);
+      target.lovAttaches.push(...kept.lovAttaches);
+      for (const rawClass of kept.classes) {
         const parent = rawClass.parentClassName;
         if (parent && parent !== NO_PARENT && !selected.has(parent)) {
           queue.push(parent);
         }
       }
-      for (const attach of artifacts.lovAttaches) {
+      for (const attach of kept.lovAttaches) {
         lovNames.add(attach.lovName);
       }
     });
@@ -123,6 +131,89 @@ function referencedClasses(main: ParsedFile): Set<string> {
   main.grmRules.forEach((r) => names.add(r.relationTypeName));
   main.lovAttaches.forEach((a) => names.add(a.typeName));
   return names;
+}
+
+/** What the main template defines itself, for its precedence (TL3a). */
+interface MainDefinitions {
+  /** Property names (attributes and compound properties) per class. */
+  properties: Map<string, Set<string>>;
+  /** Classes the main template declares with a parent. */
+  parents: Set<string>;
+  /** GRM rule identifiers per relation class. */
+  grmRules: Map<string, Set<string>>;
+  /** LOV attachment identifiers: class, attribute, lovName, conditionName. */
+  lovAttaches: Set<string>;
+}
+
+function mainDefinitions(main: ParsedFile): MainDefinitions {
+  const properties = new Map<string, Set<string>>();
+  const addProperty = (className: string, name: string) => {
+    let names = properties.get(className);
+    if (!names) {
+      names = new Set();
+      properties.set(className, names);
+    }
+    names.add(name);
+  };
+  for (const rawClass of [...main.classes, ...main.attaches]) {
+    rawClass.attributes.forEach((a) => addProperty(rawClass.className, a.name));
+  }
+  main.compoundRules.forEach((r) => addProperty(r.destTypeName, r.destPropertyName));
+
+  const parents = new Set(
+    main.classes
+      .filter((c) => c.parentClassName && c.parentClassName !== NO_PARENT)
+      .map((c) => c.className),
+  );
+
+  const grmRules = new Map<string, Set<string>>();
+  for (const rule of main.grmRules) {
+    let keys = grmRules.get(rule.relationTypeName);
+    if (!keys) {
+      keys = new Set();
+      grmRules.set(rule.relationTypeName, keys);
+    }
+    keys.add(grmRuleKey(rule));
+  }
+
+  return {
+    properties,
+    parents,
+    grmRules,
+    lovAttaches: new Set(main.lovAttaches.map(lovAttachKey)),
+  };
+}
+
+/** TL3a: copies the artifacts of one class without what the main template defines. */
+function withoutMainDefinitions(
+  artifacts: ClassArtifacts,
+  className: string,
+  own: MainDefinitions,
+): ClassArtifacts {
+  const ownProperties = own.properties.get(className);
+  const notOwn = (name: string) => !ownProperties?.has(name);
+  const ownGrmRules = own.grmRules.get(className);
+  return {
+    classes: artifacts.classes.map((c) => ({
+      className: c.className,
+      parentClassName: own.parents.has(className) ? undefined : c.parentClassName,
+      attributes: c.attributes.filter((a) => notOwn(a.name)),
+    })),
+    attaches: artifacts.attaches.map((a) => ({
+      className: a.className,
+      attributes: a.attributes.filter((attr) => notOwn(attr.name)),
+    })),
+    compoundRules: artifacts.compoundRules.filter((r) => notOwn(r.destPropertyName)),
+    grmRules: artifacts.grmRules.filter((r) => !ownGrmRules?.has(grmRuleKey(r))),
+    lovAttaches: artifacts.lovAttaches.filter((a) => !own.lovAttaches.has(lovAttachKey(a))),
+  };
+}
+
+/** IV7: composite identifier of an LOV attachment. */
+function lovAttachKey(attach: RawLovAttach): string {
+  return [attach.typeName, attach.valuePropertyName, attach.lovName, attach.conditionName].join(
+    '\u0000',
+  );
 }
 
 /** Groups the artifacts of one file by the class they are about. */

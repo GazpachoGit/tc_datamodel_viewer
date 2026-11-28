@@ -1,21 +1,24 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildApp } from './app';
-import { PROJECT_ROOT, loadConfig } from './config';
+import { appPaths, loadConfig } from './config';
 import { TemplateRepository } from './repository';
 
 /**
  * Starts the local viewer service (AC3): reads the configuration and the
- * template list, then serves the API and, when built, the client in dist/.
+ * template list, then serves the API and, when built, the client.
+ *
+ * Usage: `node server.mjs [--config <path>]` (portable build) or
+ * `tsx server/main.ts [--config <path>]` (sources).
  */
 async function main(): Promise<void> {
-  const config = loadConfig();
+  const paths = appPaths();
+  const config = loadConfig(configArgument() ?? paths.configPath);
   const repository = await TemplateRepository.open(config.modelDir);
 
-  const distDir = resolve(PROJECT_ROOT, 'dist');
   const app = await buildApp({
     repository,
-    staticDir: existsSync(resolve(distDir, 'index.html')) ? distDir : undefined,
+    staticDir: existsSync(resolve(paths.publicDir, 'index.html')) ? paths.publicDir : undefined,
   });
   await app.listen({ host: config.host, port: config.port });
 
@@ -23,6 +26,19 @@ async function main(): Promise<void> {
     `Templates: ${repository.list().length} from ${config.modelDir}\n` +
       `Viewer:    http://${config.host}:${config.port}/`,
   );
+}
+
+/** The value of `--config <path>`, resolved against the working directory. */
+function configArgument(): string | undefined {
+  const index = process.argv.indexOf('--config');
+  if (index === -1) {
+    return undefined;
+  }
+  const value = process.argv[index + 1];
+  if (!value) {
+    throw new Error('--config requires a path');
+  }
+  return resolve(value);
 }
 
 main().catch((e: unknown) => {

@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,client -c blue,green \"tsx watch server/main.ts\" \"vite\"",
-    "build": "tsc -b && vite build",
-    "start": "tsx server/main.ts",
+    "build": "tsc -b && vite build && node scripts/build-server.mjs",
+    "start": "node dist/server.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest"
@@ -26,6 +26,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "concurrently": "^10.0.7",
+    "esbuild": "^0.28.2",
     "oxlint": "^1.90.0",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
