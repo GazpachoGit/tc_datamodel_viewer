@@ -1,43 +1,26 @@
 /// <reference types="vitest/config" />
+import { readFileSync } from 'node:fs'
 import react from '@vitejs/plugin-react'
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig } from 'vite'
 
 /**
- * Rewrites the built index.html to load the bundle as a classic script
- * instead of an ES module, so the portable build works from file:// URLs.
+ * The dev server proxies the API to the viewer server; its address comes
+ * from server.config.json (IN1, AC3).
  */
-function classicScripts(): Plugin {
-  return {
-    name: 'classic-scripts',
-    transformIndexHtml: {
-      order: 'post',
-      handler: (html) =>
-        html
-          .replace(/<script type="module" crossorigin/g, '<script defer')
-          .replace(/<script type="module"/g, '<script defer'),
-    },
-  }
+function serverAddress(): string {
+  const config = JSON.parse(
+    readFileSync(new URL('./server.config.json', import.meta.url), 'utf8'),
+  ) as { host?: string; port?: number }
+  return `http://${config.host ?? '127.0.0.1'}:${config.port ?? 5180}`
 }
 
 // https://vite.dev/config/
-// `vite build --mode portable` produces a file://-compatible classic-script
-// build in dist-portable/; the default build stays an ES module build.
-export default defineConfig(({ mode }) => {
-  const portable = mode === 'portable'
-  return {
-    base: portable ? './' : '/',
-    plugins: [react(), ...(portable ? [classicScripts()] : [])],
-    build: portable
-      ? {
-          outDir: 'dist-portable',
-          modulePreload: false,
-          rollupOptions: {
-            output: { format: 'iife' as const, inlineDynamicImports: true },
-          },
-        }
-      : {},
-    test: {
-      environment: 'jsdom',
-    },
-  }
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: { '/api': serverAddress() },
+  },
+  test: {
+    environment: 'node',
+  },
 })

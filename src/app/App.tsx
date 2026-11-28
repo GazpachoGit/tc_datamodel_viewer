@@ -1,53 +1,121 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Diagram } from '../components/diagram/Diagram';
 import { PropertiesPanel } from '../components/properties/PropertiesPanel';
-import { layoutModel, type DiagramData } from '../layout/layout';
-import { loadModel } from './loadData';
+import { TemplatesPanel } from '../components/templates/TemplatesPanel';
+import type { TemplateInfo } from '../model/types';
 import { SelectionContext, type SelectedProperty } from './selection';
+import { listTemplates, loadTemplate, type TemplateView } from './templates';
+
+/** State of the diagram area (UI9, UI11, IV4). */
+type DiagramState =
+  | { kind: 'empty' }
+  | { kind: 'loading'; template: TemplateInfo }
+  | { kind: 'ready'; view: TemplateView }
+  | { kind: 'error'; template: TemplateInfo; message: string };
+
+/** LT1, LT2: the template list from the server. */
+type ListState =
+  | { kind: 'loading' }
+  | { kind: 'ready'; templates: TemplateInfo[] }
+  | { kind: 'error'; message: string };
 
 export default function App() {
-  const [diagram, setDiagram] = useState<DiagramData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [templateList, setTemplateList] = useState<ListState>({ kind: 'loading' });
+  const [state, setState] = useState<DiagramState>({ kind: 'empty' });
   const [selected, setSelected] = useState<SelectedProperty | null>(null);
+
+  const selection = useMemo(() => ({ selected, select: setSelected }), [selected]);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const model = loadModel();
-        const data = await layoutModel(model);
-        if (!cancelled) setDiagram(data);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      }
-    })();
+    listTemplates().then(
+      (templates) => !cancelled && setTemplateList({ kind: 'ready', templates }),
+      (e: unknown) =>
+        !cancelled &&
+        setTemplateList({ kind: 'error', message: e instanceof Error ? e.message : String(e) }),
+    );
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const selection = useMemo(() => ({ selected, select: setSelected }), [selected]);
-
-  // IV4: on invalid input, show only the error message.
-  if (error) {
+  // LT2: an unreachable server or a malformed dependency file is an application error.
+  if (templateList.kind === 'error') {
     return (
       <div className="error-screen">
-        <h1>Failed to build the data model</h1>
-        <pre className="error-screen__message">{error}</pre>
+        <h1>Failed to read the template list</h1>
+        <pre className="error-screen__message">{templateList.message}</pre>
       </div>
     );
   }
-
-  if (!diagram) {
-    return <div className="loading">Building the diagram…</div>;
+  if (templateList.kind === 'loading') {
+    return <div className="loading">Loading templates…</div>;
   }
+  const templates = templateList.templates;
+
+  const loading = state.kind === 'loading';
+  const selectedTemplate =
+    state.kind === 'empty' ? null : state.kind === 'ready' ? state.view.info : state.template;
+
+  // UI11, TL1-TL6: load the clicked template; clicks during loading are ignored.
+  const openTemplate = async (template: TemplateInfo) => {
+    if (loading) {
+      return;
+    }
+    setSelected(null);
+    setState({ kind: 'loading', template });
+    try {
+      const view = await loadTemplate(template, templates);
+      setState({ kind: 'ready', view });
+    } catch (e) {
+      setState({
+        kind: 'error',
+        template,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  };
 
   return (
     <SelectionContext.Provider value={selection}>
       <div className="app">
-        <Diagram nodes={diagram.nodes} edges={diagram.edges} />
+        <TemplatesPanel
+          templates={templates}
+          selected={selectedTemplate?.name ?? null}
+          loading={loading}
+          onSelect={openTemplate}
+        />
+        <DiagramArea state={state} />
         <PropertiesPanel />
       </div>
     </SelectionContext.Provider>
   );
+}
+
+function DiagramArea({ state }: { state: DiagramState }) {
+  switch (state.kind) {
+    case 'empty': // UI9
+      return <div className="diagram-placeholder">Select a template on the left.</div>;
+    case 'loading': // UI11
+      return (
+        <div className="diagram-placeholder">
+          Loading template "{state.template.displayName}"…
+        </div>
+      );
+    case 'error': // IV4: the templates panel stays available.
+      return (
+        <div className="diagram-placeholder diagram-placeholder--error">
+          <h1>Failed to build template "{state.template.displayName}"</h1>
+          <pre className="error-screen__message">{state.message}</pre>
+        </div>
+      );
+    case 'ready':
+      return (
+        <Diagram
+          key={state.view.info.name}
+          nodes={state.view.diagram.nodes}
+          edges={state.view.diagram.edges}
+        />
+      );
+  }
 }

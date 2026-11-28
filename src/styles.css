@@ -20,7 +20,76 @@ body,
   height: 100%;
 }
 
+/* Templates panel (UI1, UI10) */
+
+.templates-panel {
+  width: 260px;
+  flex-shrink: 0;
+  border-right: 1px solid #cbd5e0;
+  background: #f7fafc;
+  padding: 16px 0;
+  overflow: auto;
+}
+
+.templates-panel__title {
+  margin: 0 16px 12px;
+  font-size: 15px;
+}
+
+.templates-panel__empty {
+  margin: 0 16px;
+  color: #718096;
+}
+
+.templates-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.templates-panel__item {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 5px 16px;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: #1a202c;
+  cursor: pointer;
+}
+
+.templates-panel__item:hover {
+  background: #edf2f7;
+}
+
+.templates-panel__item--selected,
+.templates-panel__item--selected:hover {
+  background: #2b6cb0;
+  color: #ffffff;
+}
+
+/* UI11: clicks are ignored while a template loads. */
+.templates-panel--loading .templates-panel__item {
+  cursor: progress;
+}
+
 /* Diagram area (UI1) */
+
+.diagram-placeholder {
+  flex: 1;
+  min-width: 0;
+  padding: 32px;
+  color: #718096;
+  overflow: auto;
+}
+
+.diagram-placeholder--error h1 {
+  color: #c53030;
+  font-size: 20px;
+}
+
 
 .diagram {
   flex: 1;
@@ -70,6 +139,13 @@ body,
   border-bottom: 1.5px solid #4a5568;
   font-weight: 600;
   text-align: center;
+}
+
+/* UI12: dependency template of the class. */
+.uml-class__template {
+  font-weight: 400;
+  font-size: 11px;
+  color: #718096;
 }
 
 .uml-class__attrs {

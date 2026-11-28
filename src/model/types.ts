@@ -68,8 +68,18 @@ export interface GrmRule {
 /** One UML class (DM2). */
 export interface UmlClass {
   name: string;
+  /**
+   * Name of the template whose file declares the class's TcClass; undefined
+   * when the class was only created by a reference (UI12).
+   */
+  template?: string;
   /** Parent class name; undefined when the class has no parent. */
   parent?: string;
+  /**
+   * Ancestor class names from the direct parent to the root, computed after
+   * the model is built (NF12). Used to recognize relation classes (UI7).
+   */
+  ancestors: string[];
   /** Attributes keyed by name, in insertion order. */
   attributes: Map<string, UmlAttribute>;
   /** Compound properties keyed by name, in insertion order. */
@@ -84,8 +94,10 @@ export interface UmlClass {
   grmRules: GrmRule[];
 }
 
-/** The merged model built from all input files (DM2). */
+/** The model of the main template and its selected dependencies (DM2). */
 export interface Model {
+  /** Name of the main template; undefined for a model not built by template. */
+  template?: string;
   /** Classes keyed by name, in insertion order. */
   classes: Map<string, UmlClass>;
 }
@@ -157,6 +169,8 @@ export interface RawLovDefinition {
 export interface ParsedFile {
   /** File name, used in error messages. */
   fileName: string;
+  /** Name of the template this file belongs to, if known (UI12). */
+  template?: string;
   classes: RawClass[];
   attaches: RawAttributeAttach[];
   compoundRules: RawCompoundRule[];
@@ -166,7 +180,21 @@ export interface ParsedFile {
   lovDefinitions: RawLovDefinition[];
 }
 
-/** Invalid input (IV1, IV2) or malformed file detected while building the model. */
+/** One template as described by its `_dependency.xml` file (LT1). */
+export interface TemplateInfo {
+  /** Internal identifier from `name` (UI10, TL5). */
+  name: string;
+  /** Display name from `displayName`; falls back to `name` (UI10). */
+  displayName: string;
+  /** File name of the dependency file, used in error messages. */
+  dependencyFile: string;
+  /** File name of the template's `_template.xml` (TL1). */
+  templateFile: string;
+  /** Template files listed in `include/@file`, in input order (TL1). */
+  includes: string[];
+}
+
+/** Invalid input (IV1-IV8) or malformed file detected while building the model. */
 export class ModelError extends Error {
   constructor(message: string) {
     super(message);

@@ -13,6 +13,9 @@ import {
 /** Parent assigned to relation classes created by GRM rules (NF10, UI7). */
 export const IMAN_RELATION = 'ImanRelation';
 
+/** `parentClassName` value that means "no parent" (NF5). */
+export const NO_PARENT = 'NULL';
+
 /** XML attribute holding the array flag of a TcAttribute (spec/mapping.md). */
 const ARRAY_FLAG = 'isArray';
 
@@ -58,10 +61,11 @@ const GRM_RULE_ID = ['primaryTypeName', 'secondaryTypeName', 'conditionName'];
  * - attributes with an unknown attributeType are silently skipped (IV3);
  * - duplicate primary-relation pair declarations abort with ModelError (IV5);
  * - duplicate GRM rule composite identifiers abort with ModelError (IV6);
- * - duplicate LOV attach composite identifiers abort with ModelError (IV7).
+ * - duplicate LOV attach composite identifiers abort with ModelError (IV7);
+ * - inheritance cycles abort with ModelError (IV8).
  */
 export function buildModel(files: ParsedFile[]): Model {
-  const model: Model = { classes: new Map() };
+  const model: Model = { template: files[0]?.template, classes: new Map() };
   // IV6: composite identifiers of GRM rules seen per relation class.
   const grmRuleIds = new Map<string, Set<string>>();
 
@@ -69,6 +73,7 @@ export function buildModel(files: ParsedFile[]): Model {
     // NF2, NF3: one UML class per className, merged across definitions.
     for (const rawClass of file.classes) {
       const umlClass = getOrCreateClass(model, rawClass.className);
+      umlClass.template ??= file.template;
       setParent(umlClass, rawClass.parentClassName, file.fileName);
       for (const rawAttr of rawClass.attributes) {
         addAttribute(umlClass, rawAttr, file.fileName);
@@ -107,17 +112,26 @@ export function buildModel(files: ParsedFile[]): Model {
   // NF11: after all classes and attributes are built, attach LOVs.
   attachLovs(model, files);
 
+  // NF10: a relation class known only from GRM rules gets ImanRelation as
+  // parent. This is a fallback applied after all files, so a TcClass
+  // declaring another parent in a later file does not conflict (IV2).
+  for (const umlClass of model.classes.values()) {
+    const declared = umlClass.template !== undefined;
+    if (umlClass.grmRules.length > 0 && umlClass.parent === undefined && !declared) {
+      umlClass.parent = IMAN_RELATION;
+    }
+  }
+
   // NF4: ensure referenced parents exist as classes.
   for (const umlClass of Array.from(model.classes.values())) {
-    if (umlClass.parent && !model.classes.has(umlClass.parent)) {
-      model.classes.set(umlClass.parent, {
-        name: umlClass.parent,
-        attributes: new Map(),
-        compounds: new Map(),
-        relations: new Set(),
-        grmRules: [],
-      });
+    if (umlClass.parent) {
+      getOrCreateClass(model, umlClass.parent);
     }
+  }
+
+  // NF12, IV8: ancestors of every class, nearest first.
+  for (const umlClass of model.classes.values()) {
+    umlClass.ancestors = computeAncestors(model, umlClass);
   }
 
   return model;
@@ -128,6 +142,7 @@ function getOrCreateClass(model: Model, name: string): UmlClass {
   if (!umlClass) {
     umlClass = {
       name,
+      ancestors: [],
       attributes: new Map(),
       compounds: new Map(),
       relations: new Set(),
@@ -138,10 +153,25 @@ function getOrCreateClass(model: Model, name: string): UmlClass {
   return umlClass;
 }
 
+/** NF12, IV8: walks the parent chain from the direct parent to the root. */
+function computeAncestors(model: Model, umlClass: UmlClass): string[] {
+  const ancestors: string[] = [];
+  let parent = umlClass.parent;
+  while (parent !== undefined) {
+    if (parent === umlClass.name || ancestors.includes(parent)) {
+      const cycle = [umlClass.name, ...ancestors, parent].join(' -> ');
+      throw new ModelError(`class "${umlClass.name}" has an inheritance cycle (${cycle}) (IV8)`);
+    }
+    ancestors.push(parent);
+    parent = model.classes.get(parent)?.parent;
+  }
+  return ancestors;
+}
+
 /** NF4, NF5, IV2: sets the parent, creating it on first use. */
 function setParent(umlClass: UmlClass, parentName: string | undefined, fileName: string): void {
-  if (!parentName) {
-    return; // NF5: absent or empty parent creates no relation and no conflict.
+  if (!parentName || parentName === NO_PARENT) {
+    return; // NF5: absent, empty or NULL parent creates no relation and no conflict.
   }
   if (umlClass.parent !== undefined && umlClass.parent !== parentName) {
     throw new ModelError(
@@ -199,18 +229,8 @@ function addGrmRule(
   rule: RawGrmRule,
   fileName: string,
 ): void {
-  let umlClass = model.classes.get(rule.relationTypeName);
-  if (!umlClass) {
-    umlClass = {
-      name: rule.relationTypeName,
-      parent: IMAN_RELATION,
-      attributes: new Map(),
-      compounds: new Map(),
-      relations: new Set(),
-      grmRules: [],
-    };
-    model.classes.set(umlClass.name, umlClass);
-  }
+  // NF10: the ImanRelation fallback parent is assigned after all files.
+  const umlClass = getOrCreateClass(model, rule.relationTypeName);
 
   // IV6: the identifier comes from the raw XML values, independent of chars.
   const key = GRM_RULE_ID.map((part) => rule.xmlAttributes[part] ?? '').join('\u0000');

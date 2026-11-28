@@ -1,14 +1,16 @@
 import ELK from 'elkjs/lib/elk.bundled.js';
 import type { Edge, Node } from '@xyflow/react';
 import { IMAN_RELATION } from '../model/builder';
-import type { GrmRule, Model, UmlAttribute, UmlCompound } from '../model/types';
+import type { GrmRule, Model, UmlAttribute, UmlClass, UmlCompound } from '../model/types';
 
 export interface ClassNodeData extends Record<string, unknown> {
   className: string;
   attributes: UmlAttribute[];
   compounds: UmlCompound[];
-  /** True for relation classes: direct parent is ImanRelation (UI7). */
+  /** True for relation classes: ImanRelation is among the ancestors (UI7). */
   isRelationClass: boolean;
+  /** Display name of the dependency template declaring the class (UI12). */
+  templateLabel?: string;
   grmRules: GrmRule[];
 }
 
@@ -45,27 +47,47 @@ function nodeSize(data: ClassNodeData): { width: number; height: number } {
   return { width, height };
 }
 
+/** UI7: a relation class has ImanRelation among its ancestors. */
+export function isRelationClass(umlClass: UmlClass): boolean {
+  return umlClass.ancestors.includes(IMAN_RELATION);
+}
+
+export interface LayoutOptions {
+  /** Names of the classes to render (UI12); all classes when omitted. */
+  visible?: Set<string>;
+  /** Template display name shown in the node of a class (UI12). */
+  templateLabel?: (umlClass: UmlClass) => string | undefined;
+}
+
 /**
  * Converts the model into a graph and computes node positions with an
  * ELK layered layout (parents above children).
  */
-export async function layoutModel(model: Model): Promise<DiagramData> {
+export async function layoutModel(
+  model: Model,
+  options: LayoutOptions = {},
+): Promise<DiagramData> {
   const elk = new ELK();
 
   // UI6: the ImanRelation class and all edges connected to it are hidden.
-  const classes = Array.from(model.classes.values()).filter((c) => c.name !== IMAN_RELATION);
+  // UI12: only visible classes are rendered.
+  const shown = (name: string) =>
+    name !== IMAN_RELATION && (options.visible?.has(name) ?? model.classes.has(name));
+  const classes = Array.from(model.classes.values()).filter((c) => shown(c.name));
 
-  const nodeData = classes.map((umlClass) => ({
+  const nodeData: ClassNodeData[] = classes.map((umlClass) => ({
     className: umlClass.name,
     attributes: Array.from(umlClass.attributes.values()),
     compounds: Array.from(umlClass.compounds.values()),
-    isRelationClass: umlClass.parent === IMAN_RELATION,
+    isRelationClass: isRelationClass(umlClass),
+    templateLabel: options.templateLabel?.(umlClass),
     grmRules: umlClass.grmRules,
   }));
 
-  // Inheritance edges (UI2) and relation edges (NF9), kept apart for styling.
+  // Inheritance edges (UI2) and relation edges (NF9), kept apart for styling;
+  // only between rendered classes (UI12).
   const inheritanceEdges = classes
-    .filter((c) => c.parent && c.parent !== IMAN_RELATION)
+    .filter((c) => c.parent !== undefined && shown(c.parent))
     .map((c) => ({
       id: `${c.name}-inherits-${c.parent}`,
       sources: [c.name],
@@ -73,7 +95,7 @@ export async function layoutModel(model: Model): Promise<DiagramData> {
     }));
   const relationEdges = classes.flatMap((c) =>
     Array.from(c.relations)
-      .filter((relationName) => relationName !== IMAN_RELATION)
+      .filter((relationName) => shown(relationName))
       .map((relationName) => ({
         id: `${c.name}-relation-${relationName}`,
         sources: [c.name],

@@ -327,6 +327,19 @@ describe('buildModel', () => {
     expect(model.classes.get('ImanRelation')).toBeDefined();
   });
 
+  it('keeps the parent of a relation class declared after its GRM rule (NF10, IV2)', () => {
+    const model = build(
+      `<TcBusinessData xmlns="${NS}">
+         <TcGRMRule relationTypeName="CMImplements" primaryTypeName="P"
+             secondaryTypeName="S" conditionName="isTrue"/>
+       </TcBusinessData>`,
+      `<TcBusinessData xmlns="${NS}">
+         <TcClass className="CMImplements" parentClassName="CMRelation"/>
+       </TcBusinessData>`,
+    );
+    expect(model.classes.get('CMImplements')?.parent).toBe('CMRelation');
+  });
+
   it('rejects duplicate GRM rule composite identifiers (IV6)', () => {
     expect(() =>
       build(`

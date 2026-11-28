@@ -5,6 +5,7 @@ import { attributeLabel, compoundLabel, type ClassNode } from '../../layout/layo
 /**
  * UML-style class node: name header plus one row per attribute and compound
  * property (UI3). Relation class nodes are colored and selectable (UI7, AR3).
+ * Classes from dependency templates show the template name (UI12).
  */
 export function ClassNodeView({ data }: NodeProps<ClassNode>) {
   const { selected, select } = useSelection();
@@ -46,7 +47,12 @@ export function ClassNodeView({ data }: NodeProps<ClassNode>) {
       }
     >
       <Handle type="source" position={Position.Top} className="uml-handle" isConnectable={false} />
-      <div className="uml-class__name">{data.className}</div>
+      <div className="uml-class__name">
+        {data.className}
+        {data.templateLabel && (
+          <div className="uml-class__template">{data.templateLabel}</div>
+        )}
+      </div>
       <ul className="uml-class__attrs">
         {data.attributes.map((attr) =>
           row(attr.name, attributeLabel(attr), {
