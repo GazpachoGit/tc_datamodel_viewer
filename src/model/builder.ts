@@ -1,7 +1,6 @@
 import {
   ModelError,
   type LovValue,
-  type MappingConfig,
   type Model,
   type ParsedFile,
   type RawAttribute,
@@ -14,20 +13,57 @@ import {
 /** Parent assigned to relation classes created by GRM rules (NF10, UI7). */
 export const IMAN_RELATION = 'ImanRelation';
 
+/** XML attribute holding the array flag of a TcAttribute (spec/mapping.md). */
+const ARRAY_FLAG = 'isArray';
+
 /**
- * Builds the intermediate model from parsed files (NF1-NF10), enforcing the
- * input validation rules (IV1-IV6):
+ * Display type and characteristics per TcAttribute `attributeType`
+ * (spec/mapping.md, "Типы атрибутов"). Types not listed are skipped (IV3).
+ */
+const ATTRIBUTE_TYPES: Record<string, { type: string; chars: string[] }> = {
+  POM_string: { type: 'String', chars: ['maxStringLength'] },
+  POM_date: { type: 'Date', chars: [] },
+  POM_int: { type: 'Integer', chars: ['lowerBoundValue', 'upperBoundValue'] },
+  POM_double: { type: 'Double', chars: ['lowerBoundValue', 'upperBoundValue'] },
+  POM_logical: { type: 'Boolean', chars: [] },
+  POM_long_string: { type: 'LongString', chars: [] },
+  POM_typed_reference: { type: 'TypedReference', chars: ['typedRefClassName'] },
+  POM_untyped_reference: { type: 'UntypedReference', chars: [] },
+};
+
+/** Display type of compound properties (spec/mapping.md, "Compound"). */
+const COMPOUND_TYPE = 'Compound';
+
+/** Characteristics of compound properties (spec/mapping.md, "Compound"). */
+const COMPOUND_CHARS = ['pathToSource'];
+
+/** Characteristics of GRM rules (spec/mapping.md, "GRMRule"). */
+const GRM_RULE_CHARS = [
+  'primaryTypeName',
+  'secondaryTypeName',
+  'conditionName',
+  'primaryCardinality',
+  'secondaryCardinality',
+];
+
+/** Composite identifier of a GRM rule within its relation class (IV6). */
+const GRM_RULE_ID = ['primaryTypeName', 'secondaryTypeName', 'conditionName'];
+
+/**
+ * Builds the intermediate model from parsed files (NF1-NF11), converting XML
+ * as described in spec/mapping.md and enforcing the input validation rules:
  * - duplicate property names within a class (attributes and compound
  *   properties combined) abort with ModelError (IV1);
  * - two different non-empty parents for a class abort with ModelError (IV2);
- * - attributes with an attributeType missing from the mapping are silently
- *   skipped (IV3);
+ * - attributes with an unknown attributeType are silently skipped (IV3);
  * - duplicate primary-relation pair declarations abort with ModelError (IV5);
  * - duplicate GRM rule composite identifiers abort with ModelError (IV6);
  * - duplicate LOV attach composite identifiers abort with ModelError (IV7).
  */
-export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
+export function buildModel(files: ParsedFile[]): Model {
   const model: Model = { classes: new Map() };
+  // IV6: composite identifiers of GRM rules seen per relation class.
+  const grmRuleIds = new Map<string, Set<string>>();
 
   for (const file of files) {
     // NF2, NF3: one UML class per className, merged across definitions.
@@ -35,20 +71,20 @@ export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
       const umlClass = getOrCreateClass(model, rawClass.className);
       setParent(umlClass, rawClass.parentClassName, file.fileName);
       for (const rawAttr of rawClass.attributes) {
-        addAttribute(umlClass, rawAttr, mapping, file.fileName);
+        addAttribute(umlClass, rawAttr, file.fileName);
       }
     }
     // NF7: TcAttributeAttach adds attributes to an existing or new class.
     for (const attach of file.attaches) {
       const umlClass = getOrCreateClass(model, attach.className);
       for (const rawAttr of attach.attributes) {
-        addAttribute(umlClass, rawAttr, mapping, file.fileName);
+        addAttribute(umlClass, rawAttr, file.fileName);
       }
     }
     // NF8: TcCompoundPropertyRule adds compound properties to the dest class.
     for (const rule of file.compoundRules) {
       const umlClass = getOrCreateClass(model, rule.destTypeName);
-      addCompound(umlClass, rule, mapping, file.fileName);
+      addCompound(umlClass, rule, file.fileName);
     }
     // NF9: relation properties connect the primary class to a relation class.
     for (const rel of file.relationProperties) {
@@ -64,7 +100,7 @@ export function buildModel(files: ParsedFile[], mapping: MappingConfig): Model {
     }
     // NF10: TcGRMRule appends GRM rules to its relation class.
     for (const rule of file.grmRules) {
-      addGrmRule(model, rule, mapping, file.fileName);
+      addGrmRule(model, grmRuleIds, rule, file.fileName);
     }
   }
 
@@ -116,64 +152,34 @@ function setParent(umlClass: UmlClass, parentName: string | undefined, fileName:
   umlClass.parent = parentName;
 }
 
-/** NF6, IV1, IV3: maps and adds one attribute to a class. */
-function addAttribute(
-  umlClass: UmlClass,
-  rawAttr: RawAttribute,
-  mapping: MappingConfig,
-  fileName: string,
-): void {
-  const typeMapping = mapping.types.get(rawAttr.attributeType);
+/** NF6, IV1, IV3: converts and adds one attribute to a class. */
+function addAttribute(umlClass: UmlClass, rawAttr: RawAttribute, fileName: string): void {
+  const typeMapping = ATTRIBUTE_TYPES[rawAttr.attributeType];
   if (!typeMapping) {
     return; // IV3: unknown attribute types are silently ignored.
   }
   requireUniqueName(umlClass, rawAttr.name, fileName);
 
-  const arrayFlagValue = rawAttr.xmlAttributes[typeMapping.arrayFlag];
-  const chars: Record<string, string> = {};
-  for (const charName of typeMapping.chars) {
-    const value = rawAttr.xmlAttributes[charName];
-    if (value !== undefined && value !== '') {
-      chars[charName] = value; // AR1: omit missing or empty characteristics.
-    }
-  }
-
+  const arrayFlagValue = rawAttr.xmlAttributes[ARRAY_FLAG];
   const attribute: UmlAttribute = {
     name: rawAttr.name,
     type: typeMapping.type,
     isArray: arrayFlagValue === 'true',
-    arrayFlagName: typeMapping.arrayFlag,
+    arrayFlagName: ARRAY_FLAG,
     arrayFlagValue,
-    chars,
+    chars: pickChars(rawAttr.xmlAttributes, typeMapping.chars),
     lovs: [],
   };
   umlClass.attributes.set(attribute.name, attribute);
 }
 
-/** NF8, IV1: maps and adds one compound property to a class. */
-function addCompound(
-  umlClass: UmlClass,
-  rule: RawCompoundRule,
-  mapping: MappingConfig,
-  fileName: string,
-): void {
-  if (!mapping.compound) {
-    return; // No compound mapping configured: rules are skipped.
-  }
+/** NF8, IV1: converts and adds one compound property to a class. */
+function addCompound(umlClass: UmlClass, rule: RawCompoundRule, fileName: string): void {
   requireUniqueName(umlClass, rule.destPropertyName, fileName);
-
-  const chars: Record<string, string> = {};
-  for (const charName of mapping.compound.chars) {
-    const value = rule.xmlAttributes[charName];
-    if (value !== undefined && value !== '') {
-      chars[charName] = value; // AR2: omit missing or empty characteristics.
-    }
-  }
-
   umlClass.compounds.set(rule.destPropertyName, {
     name: rule.destPropertyName,
-    type: mapping.compound.type,
-    chars,
+    type: COMPOUND_TYPE,
+    chars: pickChars(rule.xmlAttributes, COMPOUND_CHARS),
   });
 }
 
@@ -189,13 +195,10 @@ function requireUniqueName(umlClass: UmlClass, name: string, fileName: string): 
 /** NF10, IV6: appends one GRM rule to its relation class. */
 function addGrmRule(
   model: Model,
+  grmRuleIds: Map<string, Set<string>>,
   rule: RawGrmRule,
-  mapping: MappingConfig,
   fileName: string,
 ): void {
-  if (!mapping.grmRule) {
-    return; // No GRM rule mapping configured: rules are skipped.
-  }
   let umlClass = model.classes.get(rule.relationTypeName);
   if (!umlClass) {
     umlClass = {
@@ -209,26 +212,37 @@ function addGrmRule(
     model.classes.set(umlClass.name, umlClass);
   }
 
-  // IV6: composite identifier primaryTypeName + secondaryTypeName + conditionName.
-  const ID_PARTS = ['primaryTypeName', 'secondaryTypeName', 'conditionName'];
-  const keyOf = (get: (name: string) => string | undefined) =>
-    ID_PARTS.map((part) => get(part) ?? '').join('\u0000');
-  const key = keyOf((part) => rule.xmlAttributes[part]);
-  if (umlClass.grmRules.some((existing) => keyOf((part) => existing.chars[part]) === key)) {
-    const id = ID_PARTS.map((part) => `${part} "${rule.xmlAttributes[part] ?? ''}"`).join(', ');
+  // IV6: the identifier comes from the raw XML values, independent of chars.
+  const key = GRM_RULE_ID.map((part) => rule.xmlAttributes[part] ?? '').join('\u0000');
+  let seen = grmRuleIds.get(umlClass.name);
+  if (!seen) {
+    seen = new Set();
+    grmRuleIds.set(umlClass.name, seen);
+  }
+  if (seen.has(key)) {
+    const id = GRM_RULE_ID.map((part) => `${part} "${rule.xmlAttributes[part] ?? ''}"`).join(', ');
     throw new ModelError(
       `${fileName}: relation class "${umlClass.name}" has a duplicate GRM rule (${id}) (IV6)`,
     );
   }
+  seen.add(key);
 
+  umlClass.grmRules.push({ chars: pickChars(rule.xmlAttributes, GRM_RULE_CHARS) });
+}
+
+/**
+ * Copies the listed XML attributes in list order, omitting missing or empty
+ * values (AR1-AR3).
+ */
+function pickChars(xmlAttributes: Record<string, string>, names: string[]): Record<string, string> {
   const chars: Record<string, string> = {};
-  for (const charName of mapping.grmRule.chars) {
-    const value = rule.xmlAttributes[charName];
+  for (const name of names) {
+    const value = xmlAttributes[name];
     if (value !== undefined && value !== '') {
-      chars[charName] = value; // AR3: omit missing or empty characteristics.
+      chars[name] = value;
     }
   }
-  umlClass.grmRules.push({ chars });
+  return chars;
 }
 
 /** NF11, IV7: attaches LOV records to built attributes. */

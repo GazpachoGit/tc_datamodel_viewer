@@ -1,17 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import mappingYaml from '../../spec/mapping.yaml?raw';
 import { buildModel } from './builder';
-import { parseMapping } from './mapping';
 import { parseTcXml } from './parser';
-import { ModelError, type MappingConfig, type Model } from './types';
-
-const mapping: MappingConfig = parseMapping(mappingYaml);
+import { ModelError, type Model } from './types';
 
 const NS = 'http://teamcenter.com/BusinessModel/TcBusinessData';
 
 function build(...xmlFiles: string[]): Model {
   const files = xmlFiles.map((xml, i) => parseTcXml(`file${i}.xml`, xml));
-  return buildModel(files, mapping);
+  return buildModel(files);
 }
 
 // Example input from requirements.md.
@@ -344,6 +340,22 @@ describe('buildModel', () => {
       new ModelError(
         'file0.xml: relation class "MyRel" has a duplicate GRM rule ' +
           '(primaryTypeName "P", secondaryTypeName "S", conditionName "isTrue") (IV6)',
+      ),
+    );
+  });
+
+  it('treats missing and empty conditionName as the same GRM rule identifier (IV6)', () => {
+    expect(() =>
+      build(`
+        <TcBusinessData xmlns="${NS}">
+          <TcGRMRule relationTypeName="MyRel" primaryTypeName="P" secondaryTypeName="S"/>
+          <TcGRMRule relationTypeName="MyRel" primaryTypeName="P" secondaryTypeName="S"
+              conditionName=""/>
+        </TcBusinessData>`),
+    ).toThrowError(
+      new ModelError(
+        'file0.xml: relation class "MyRel" has a duplicate GRM rule ' +
+          '(primaryTypeName "P", secondaryTypeName "S", conditionName "") (IV6)',
       ),
     );
   });

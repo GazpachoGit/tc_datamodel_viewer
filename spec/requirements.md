@@ -17,7 +17,8 @@ selected attributes in a properties panel.
 
 - **AC1.** The input XML conforms to the Teamcenter business model schema with namespace
    `http://teamcenter.com/BusinessModel/TcBusinessData`.
-- **AC2.** Attribute mapping is defined in [mapping.yaml](./mapping.yaml).
+- **AC2.** The conversion of Teamcenter XML into the intermediate model is
+   defined in [mapping.md](./mapping.md).
 
 ## Input
 
@@ -25,8 +26,6 @@ selected attributes in a properties panel.
    `src/data/xml` and bundled with the viewer.
 - **IN2.** The viewer processes XML files directly in that directory, without
    searching subdirectories. Selecting a directory at runtime is not required.
-- **IN3.** The attribute mapping file is included in the viewer's source files
-   and is not supplied as runtime input.
 
 ## Input validation
 
@@ -40,7 +39,7 @@ selected attributes in a properties panel.
    `parentClassName` does not conflict with a non-empty one; a class created
    without a parent may receive one later.
 - **IV3.** A `TcAttribute` whose `attributeType` is not defined in
-   [mapping.yaml](./mapping.yaml) is silently ignored: it is not added to the
+   the attribute types table of [mapping.md](./mapping.md) is silently ignored: it is not added to the
    model and does not appear in the diagram or the properties panel.
 - **IV4.** When invalid input (IV1, IV2, IV5, IV6, IV7) is detected, the
    viewer aborts building the model and displays only an error message
@@ -148,7 +147,7 @@ selected attributes in a properties panel.
    item. A relation class node (UI7) can also be selected as a whole by
    clicking it; other classes cannot be selected.
 - **UI5.** When an attribute is selected, the properties panel displays its
-   characteristics as defined by the attribute mapping.
+   characteristics as defined in [mapping.md](./mapping.md).
 - **UI6.** The class named `ImanRelation` and all edges connected to it are
    not rendered in the diagram. The class remains part of the model.
 - **UI7.** Relation class nodes — classes whose direct parent is
@@ -163,11 +162,11 @@ selected attributes in a properties panel.
 #### Attribute representation
 
 - **AR1.** When an attribute is selected, the properties panel lists its name,
-   mapped type, array flag, and mapped characteristics. Display each item on a
-   separate line in the format `<property name> : <value>`. Use
-   `attributeName` for the attribute name, `type` for its mapped type, the
-   mapped `array_flag` XML attribute for the array flag, and the original XML
-   names for characteristics listed in `chars`. Omit missing or empty
+   mapped type, array flag, and characteristics (see the Attribute section of
+   [mapping.md](./mapping.md)). Display each item on a separate line in the
+   format `<property name> : <value>`. Use `attributeName` for the attribute
+   name, `type` for its mapped type, `isArray` for the array flag, and the
+   original XML names for characteristics. Omit missing or empty
    characteristics.
 
 Properties panel for the selected `names` attribute:
@@ -204,7 +203,8 @@ typedRefClassName : GroupMember
    its name, mapped type, and mapped characteristics. Display each item on a
    separate line in the format `<property name> : <value>`. Use
    `destPropertyName` for the property name, `type` for its mapped type, and
-   the original XML names for characteristics listed in `chars`. There is no
+   the original XML names for characteristics (see the Compound section of
+   [mapping.md](./mapping.md)). There is no
    array flag line. Omit missing or empty characteristics.
 
 Properties panel for the selected `approver_group` compound property:
@@ -220,8 +220,8 @@ pathToSource : REF(approver,GroupMember).group
 - **AR3.** When a relation class is selected, the properties panel lists the
    class name and its GRM rules. Display `className` with the class name on
    the first line, then one block per GRM rule starting with a `GRMRule:`
-   heading followed by the rule's characteristics as defined by the
-   `TcGRMRule` mapping, one `<property name> : <value>` line each, using the
+   heading followed by the rule's characteristics as defined in the GRMRule
+   section of [mapping.md](./mapping.md), one `<property name> : <value>` line each, using the
    original XML names. Omit missing or empty characteristics. Rules keep
    their input order.
 
@@ -284,18 +284,18 @@ LOV "MissingLOV" not found
    create an inheritance relation. If the class already has a different
    non-empty parent, the input is invalid (IV2).
 - **NF6.** For each `TcAttribute` inside a `TcClass`, create an attribute on the
-   corresponding UML class. Apply the type and characteristic mappings from
-   [mapping.yaml](./mapping.yaml); if the `attributeType` is not defined in the
-   mapping, skip the attribute (IV3).
+   corresponding UML class. Convert its type and characteristics as defined
+   in [mapping.md](./mapping.md); if the `attributeType` is not listed there,
+   skip the attribute (IV3).
 - **NF7.** For each `TcAttributeAttach`, find the UML class named by its `className`,
    or create it if it does not exist. Add each nested `TcAttribute` to that
-   class using the attribute mappings. IV1 and IV3 apply to these attributes
+   class the same way as in NF6. IV1 and IV3 apply to these attributes
    as well.
 - **NF8.** For each `TcCompoundPropertyRule`, find the UML class named by its
    `destTypeName`, or create it if it does not exist. Add a compound property
-   named by `destPropertyName` to that class, applying the
-   `TcCompoundPropertyRule` mapping from [mapping.yaml](./mapping.yaml) for
-   its type and characteristics. Other XML attributes of the rule are not
+   named by `destPropertyName` to that class, with the type and
+   characteristics defined in the Compound section of
+   [mapping.md](./mapping.md). Other XML attributes of the rule are not
    displayed. IV1 applies to compound properties as well.
 - **NF9.** For each `TcProperty` with `propTypeName="Relation"` nested in a
    `TcStandardType` or `TcPropertyAttach` element, the property's `propName`
@@ -309,8 +309,8 @@ LOV "MissingLOV" not found
 - **NF10.** For each `TcGRMRule`, find the UML class named by its
    `relationTypeName`; if it does not exist, create it with `ImanRelation` as
    its parent. Append a GRM rule to that class with the characteristics
-   defined by the `TcGRMRule` mapping in [mapping.yaml](./mapping.yaml):
-   the original XML attribute values listed in `chars`. Rules keep their
+   defined in the GRMRule section of [mapping.md](./mapping.md): the original
+   XML attribute values. Rules keep their
    input order; other XML attributes of the rule are not displayed. A
    repeated composite identifier is invalid input (IV6).
 - **NF11.** After NF1–NF10 have been applied to all input files, process the

@@ -26,17 +26,17 @@ export interface AttributeLov {
 export interface UmlAttribute {
   /** Attribute name from `attributeName`. */
   name: string;
-  /** Mapped display type from mapping.yaml (`type`). */
+  /** Display type converted from `attributeType` (spec/mapping.md). */
   type: string;
   /** Whether the attribute is an array (adds `[]` in the diagram). */
   isArray: boolean;
-  /** Original XML name of the array flag attribute (mapping `array_flag`). */
+  /** Original XML name of the array flag attribute (`isArray`). */
   arrayFlagName: string;
   /** Raw XML value of the array flag attribute, if present. */
   arrayFlagValue?: string;
   /**
-   * Characteristics listed in mapping `chars`, keyed by their original XML
-   * names, in mapping order. Missing or empty values are omitted (AR1).
+   * Characteristics for the attribute type (spec/mapping.md), keyed by their
+   * original XML names. Missing or empty values are omitted (AR1).
    */
   chars: Record<string, string>;
   /** LOV attachments of this attribute, in input order (NF11). */
@@ -47,11 +47,11 @@ export interface UmlAttribute {
 export interface UmlCompound {
   /** Property name from `destPropertyName`. */
   name: string;
-  /** Mapped display type from mapping.yaml, e.g. `Compound`. */
+  /** Display type, always `Compound` (spec/mapping.md). */
   type: string;
   /**
-   * Characteristics listed in mapping `chars`, keyed by their original XML
-   * names, in mapping order. Missing or empty values are omitted (AR2).
+   * Characteristics from spec/mapping.md, keyed by their original XML
+   * names. Missing or empty values are omitted (AR2).
    */
   chars: Record<string, string>;
 }
@@ -59,9 +59,8 @@ export interface UmlCompound {
 /** One GRM rule of a relation class, from TcGRMRule (NF10). */
 export interface GrmRule {
   /**
-   * Characteristics listed in the TcGRMRule mapping `chars`, keyed by their
-   * original XML names, in mapping order. Missing or empty values are
-   * omitted (AR3).
+   * Characteristics from spec/mapping.md, keyed by their original XML
+   * names. Missing or empty values are omitted (AR3).
    */
   chars: Record<string, string>;
 }
@@ -91,41 +90,7 @@ export interface Model {
   classes: Map<string, UmlClass>;
 }
 
-/** Mapping for one Teamcenter attribute type (spec/mapping.yaml). */
-export interface AttributeTypeMapping {
-  /** Display type, e.g. `String`. */
-  type: string;
-  /** XML attribute name holding the array flag, e.g. `isArray`. */
-  arrayFlag: string;
-  /** XML attribute names of the characteristics to expose. */
-  chars: string[];
-}
-
-/** Mapping for TcCompoundPropertyRule properties (spec/mapping.yaml). */
-export interface CompoundMapping {
-  /** Display type, e.g. `Compound`. */
-  type: string;
-  /** XML attribute names of the characteristics to expose. */
-  chars: string[];
-}
-
-/** Mapping for TcGRMRule characteristics (spec/mapping.yaml). */
-export interface GrmRuleMapping {
-  /** XML attribute names of the characteristics to expose. */
-  chars: string[];
-}
-
-/** Parsed mapping.yaml. */
-export interface MappingConfig {
-  /** Mappings keyed by Teamcenter attribute type, e.g. `POM_string`. */
-  types: Map<string, AttributeTypeMapping>;
-  /** Mapping for compound properties; absent rules are skipped without it. */
-  compound?: CompoundMapping;
-  /** Mapping for GRM rules; absent rules are skipped without it. */
-  grmRule?: GrmRuleMapping;
-}
-
-/** A TcAttribute as read from XML, before mapping is applied. */
+/** A TcAttribute as read from XML, before conversion. */
 export interface RawAttribute {
   name: string;
   attributeType: string;

@@ -1,6 +1,4 @@
-import mappingYaml from '../../spec/mapping.yaml?raw';
 import { buildModel } from '../model/builder';
-import { parseMapping } from '../model/mapping';
 import { parseTcXml } from '../model/parser';
 import type { Model } from '../model/types';
 
@@ -11,11 +9,10 @@ const xmlFiles = import.meta.glob('../data/xml/*.xml', {
   eager: true,
 }) as Record<string, string>;
 
-/** Loads the bundled XML files and mapping and builds the model (NF1-NF7). */
+/** Loads the bundled XML files and builds the model (NF1-NF11). */
 export function loadModel(): Model {
-  const mapping = parseMapping(mappingYaml);
   const files = Object.entries(xmlFiles).map(([path, text]) =>
     parseTcXml(path.split('/').pop() ?? path, text),
   );
-  return buildModel(files, mapping);
+  return buildModel(files);
 }
