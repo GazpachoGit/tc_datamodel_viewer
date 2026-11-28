@@ -240,7 +240,12 @@ body,
   box-shadow: 0 0 0 2px #2b6cb0;
 }
 
-/* Relation class nodes (UI7). */
+/* Classes declared by the current template (UI3). */
+.uml-class--main {
+  background: #ebf8ff;
+}
+
+/* Relation class nodes (UI7); their color wins over the template color. */
 .uml-class--relation {
   background: #faf5ff;
   border-color: #805ad5;

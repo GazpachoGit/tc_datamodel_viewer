@@ -1,12 +1,65 @@
-import { Background, Controls, ReactFlow } from '@xyflow/react';
+import { useCallback, useState } from 'react';
+import { Background, Controls, ReactFlow, type OnNodesChange } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import type { DiagramData } from '../../layout/layout';
+import { pushDownOverlaps } from '../../layout/collisions';
+import type { ClassNode, DiagramData } from '../../layout/layout';
 import { ClassNodeView } from './ClassNode';
 
 const nodeTypes = { umlClass: ClassNodeView };
 
-/** The class diagram area (UI1, UI2). Classes are not selectable (UI4). */
-export function Diagram({ nodes, edges }: DiagramData) {
+/** Vertical space kept between a grown node and the nodes it pushes (UI15). */
+const PUSH_GAP = 24;
+
+/**
+ * The class diagram area (UI1, UI2). Classes are not selectable (UI4).
+ * Node positions start from the layout and then live here: dragging moves
+ * nodes, and a node that grows (UI14) pushes the nodes it overlaps down.
+ */
+export function Diagram({ nodes: initialNodes, edges }: DiagramData) {
+  const [nodes, setNodes] = useState(initialNodes);
+
+  const onNodesChange: OnNodesChange<ClassNode> = useCallback((changes) => {
+    setNodes((previous) => {
+      // Only growth of an already measured node pushes; the first measurement
+      // and shrinking (collapsing) move nothing.
+      const grown = changes.getByType('dimensions').flatMap((change) => {
+        if (!change.dimensions) {
+          return [];
+        }
+        const before = previous.find((node) => node.id === change.id)?.measured;
+        if (!before?.width || !before.height) {
+          return [];
+        }
+        const after = change.dimensions;
+        return after.height > before.height + 0.5 || after.width > before.width + 0.5
+          ? [change.id]
+          : [];
+      });
+
+      let next = changes.applyTo(previous);
+      for (const id of grown) {
+        const moved = pushDownOverlaps(
+          next.map((node) => ({
+            id: node.id,
+            x: node.position.x,
+            y: node.position.y,
+            width: node.measured?.width ?? 0,
+            height: node.measured?.height ?? 0,
+          })),
+          id,
+          PUSH_GAP,
+        );
+        if (moved.size > 0) {
+          next = next.map((node) => {
+            const y = moved.get(node.id);
+            return y === undefined ? node : { ...node, position: { ...node.position, y } };
+          });
+        }
+      }
+      return next;
+    });
+  }, []);
+
   return (
     <div className="diagram">
       <svg width="0" height="0">
@@ -46,6 +99,7 @@ export function Diagram({ nodes, edges }: DiagramData) {
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        onNodesChange={onNodesChange}
         nodeTypes={nodeTypes}
         fitView
         minZoom={0.05}

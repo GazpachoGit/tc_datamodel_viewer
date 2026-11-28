@@ -1,7 +1,8 @@
 /Agent.docx
 /~$Agent.docx
 /examples/
-/spec/to_do.md
+/spec/*
+!/spec/requirements.md
 # Logs
 logs
 *.log

@@ -13,7 +13,12 @@ export interface ClassNodeData extends Record<string, unknown> {
   /** Display name of the dependency template declaring the class (UI12). */
   templateLabel?: string;
   grmRules: GrmRule[];
-  /** UI15: attributes are shown on first render for the main template's classes. */
+  /** True for classes declared by the main template (UI3 color). */
+  isMainTemplate: boolean;
+  /**
+   * UI15: attributes are shown on first render for the main template's
+   * classes and for classes with attributes changed by it (UI13).
+   */
   initiallyExpanded: boolean;
   /** UI13: attributes changed by the main template, by attribute name. */
   changes: Record<string, AttributeChange>;
@@ -112,7 +117,11 @@ export async function layoutModel(
       isRelationClass: isRelationClass(umlClass),
       templateLabel: options.templateLabel?.(umlClass),
       grmRules: umlClass.grmRules,
-      initiallyExpanded: mainTemplate === undefined || umlClass.template === mainTemplate,
+      isMainTemplate: mainTemplate !== undefined && umlClass.template === mainTemplate,
+      initiallyExpanded:
+        mainTemplate === undefined ||
+        umlClass.template === mainTemplate ||
+        Object.keys(changes).length > 0,
       changes,
     };
   });

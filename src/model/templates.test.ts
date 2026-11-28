@@ -233,7 +233,10 @@ describe('template markers and changed attributes (UI13)', () => {
     const diagram = await layoutModel(m, { mainTemplate: 'app' });
     const node = (id: string) => diagram.nodes.find((n) => n.id === id)!;
     expect(node('AppPart').data.initiallyExpanded).toBe(true);
-    expect(node('Part').data.initiallyExpanded).toBe(false);
+    expect(node('AppPart').data.isMainTemplate).toBe(true);
+    // A dependency class with attributes changed by the main template starts expanded.
+    expect(node('Part').data.initiallyExpanded).toBe(true);
+    expect(node('Part').data.isMainTemplate).toBe(false);
     expect(node('Part').data.changes).toEqual({ extra: 'added', coded: 'lov' });
     expect(node('AppPart').data.changes).toEqual({});
     // Without a main template every class starts expanded.

@@ -54,6 +54,7 @@ export function ClassNodeView({ data }: NodeProps<ClassNode>) {
   const hasRows = data.attributes.length + data.compounds.length > 0;
   const classNames = [
     'uml-class',
+    data.isMainTemplate ? 'uml-class--main' : '',
     data.isRelationClass ? 'uml-class--relation' : '',
     isClassSelected ? 'uml-class--selected' : '',
     expanded ? '' : 'uml-class--collapsed',

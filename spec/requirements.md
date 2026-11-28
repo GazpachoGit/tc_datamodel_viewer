@@ -160,6 +160,8 @@ selected attributes in a properties panel.
    rows without an array marker.
    Attribute characteristics are not shown in the class node; they are shown
    in the properties panel. A collapsed node (UI14) shows only its header.
+   Classes declared by the main template have a light blue background;
+   relation classes keep their own color (UI7).
 
    Example diagram representation:
 
@@ -224,9 +226,12 @@ selected attributes in a properties panel.
    button in its header that collapses or expands these rows. Its arrow icon
    points down while the rows are shown and right while they are hidden.
 - **UI15.** When a template is displayed, the classes declared by the main
-   template, including its relation classes, are expanded; all other
-   classes are collapsed. The diagram is laid out once for this initial
-   state; expanding or collapsing a class does not change the layout.
+   template, including its relation classes, and the classes with attributes
+   changed by the main template (UI13) are expanded; all other classes are
+   collapsed. The diagram is laid out once for this initial state. The
+   layout is not recomputed when a class is expanded or collapsed;
+   expanding a class moves the nodes it would overlap down, and collapsing
+   it moves nothing.
 - **UI16.** The templates panel has a search field. The list shows the
    templates whose `name` or `displayName` contains the search text,
    ignoring case; when none match, it shows a message.
