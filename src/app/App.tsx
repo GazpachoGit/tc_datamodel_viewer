@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Diagram } from '../components/diagram/Diagram';
+import { SidePanel } from '../components/common/SidePanel';
 import { PropertiesPanel } from '../components/properties/PropertiesPanel';
 import { TemplatesPanel } from '../components/templates/TemplatesPanel';
 import type { TemplateInfo } from '../model/types';
@@ -23,6 +24,9 @@ export default function App() {
   const [templateList, setTemplateList] = useState<ListState>({ kind: 'loading' });
   const [state, setState] = useState<DiagramState>({ kind: 'empty' });
   const [selected, setSelected] = useState<SelectedProperty | null>(null);
+  // UI17: both side panels can be collapsed to a tab.
+  const [templatesOpen, setTemplatesOpen] = useState(true);
+  const [propertiesOpen, setPropertiesOpen] = useState(true);
 
   const selection = useMemo(() => ({ selected, select: setSelected }), [selected]);
 
@@ -79,14 +83,28 @@ export default function App() {
   return (
     <SelectionContext.Provider value={selection}>
       <div className="app">
-        <TemplatesPanel
-          templates={templates}
-          selected={selectedTemplate?.name ?? null}
-          loading={loading}
-          onSelect={openTemplate}
-        />
+        <SidePanel
+          side="left"
+          title="Templates"
+          open={templatesOpen}
+          onToggle={() => setTemplatesOpen((open) => !open)}
+        >
+          <TemplatesPanel
+            templates={templates}
+            selected={selectedTemplate?.name ?? null}
+            loading={loading}
+            onSelect={openTemplate}
+          />
+        </SidePanel>
         <DiagramArea state={state} />
-        <PropertiesPanel />
+        <SidePanel
+          side="right"
+          title="Properties"
+          open={propertiesOpen}
+          onToggle={() => setPropertiesOpen((open) => !open)}
+        >
+          <PropertiesPanel />
+        </SidePanel>
       </div>
     </SelectionContext.Provider>
   );

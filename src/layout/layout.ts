@@ -1,6 +1,7 @@
 import ELK from 'elkjs/lib/elk.bundled.js';
 import type { Edge, Node } from '@xyflow/react';
 import { IMAN_RELATION } from '../model/builder';
+import { attributeChange, type AttributeChange } from '../model/selection';
 import type { GrmRule, Model, UmlAttribute, UmlClass, UmlCompound } from '../model/types';
 
 export interface ClassNodeData extends Record<string, unknown> {
@@ -12,6 +13,10 @@ export interface ClassNodeData extends Record<string, unknown> {
   /** Display name of the dependency template declaring the class (UI12). */
   templateLabel?: string;
   grmRules: GrmRule[];
+  /** UI15: attributes are shown on first render for the main template's classes. */
+  initiallyExpanded: boolean;
+  /** UI13: attributes changed by the main template, by attribute name. */
+  changes: Record<string, AttributeChange>;
 }
 
 export type ClassNode = Node<ClassNodeData, 'umlClass'>;
@@ -22,6 +27,8 @@ export interface DiagramData {
 }
 
 const HEADER_HEIGHT = 34;
+const TEMPLATE_LABEL_HEIGHT = 15;
+const TOGGLE_WIDTH = 22;
 const ROW_HEIGHT = 21;
 const CHAR_WIDTH = 7.5;
 const H_PADDING = 24;
@@ -41,10 +48,15 @@ function nodeSize(data: ClassNodeData): { width: number; height: number } {
     ...data.attributes.map((a) => attributeLabel(a).length),
     ...data.compounds.map((c) => compoundLabel(c).length),
   ];
-  const width = Math.max(MIN_WIDTH, Math.max(...textLengths) * CHAR_WIDTH + H_PADDING);
+  const width =
+    Math.max(MIN_WIDTH, Math.max(...textLengths) * CHAR_WIDTH + H_PADDING) + TOGGLE_WIDTH;
+  const header = HEADER_HEIGHT + (data.templateLabel ? TEMPLATE_LABEL_HEIGHT : 0);
+  // UI15: the layout follows the initial state; a collapsed node is its header.
+  if (!data.initiallyExpanded) {
+    return { width, height: header };
+  }
   const rowCount = data.attributes.length + data.compounds.length;
-  const height = HEADER_HEIGHT + Math.max(1, rowCount) * ROW_HEIGHT;
-  return { width, height };
+  return { width, height: header + Math.max(1, rowCount) * ROW_HEIGHT };
 }
 
 /** UI7: a relation class has ImanRelation among its ancestors. */
@@ -57,6 +69,12 @@ export interface LayoutOptions {
   visible?: Set<string>;
   /** Template display name shown in the node of a class (UI12). */
   templateLabel?: (umlClass: UmlClass) => string | undefined;
+  /**
+   * Name of the main template: its classes start expanded (UI15) and
+   * changes to dependency attributes are marked (UI13). When omitted, every
+   * class starts expanded and nothing is marked.
+   */
+  mainTemplate?: string;
 }
 
 /**
@@ -75,14 +93,29 @@ export async function layoutModel(
     name !== IMAN_RELATION && (options.visible?.has(name) ?? model.classes.has(name));
   const classes = Array.from(model.classes.values()).filter((c) => shown(c.name));
 
-  const nodeData: ClassNodeData[] = classes.map((umlClass) => ({
-    className: umlClass.name,
-    attributes: Array.from(umlClass.attributes.values()),
-    compounds: Array.from(umlClass.compounds.values()),
-    isRelationClass: isRelationClass(umlClass),
-    templateLabel: options.templateLabel?.(umlClass),
-    grmRules: umlClass.grmRules,
-  }));
+  const { mainTemplate } = options;
+  const nodeData: ClassNodeData[] = classes.map((umlClass) => {
+    const attributes = Array.from(umlClass.attributes.values());
+    const changes: Record<string, AttributeChange> = {};
+    if (mainTemplate !== undefined) {
+      for (const attribute of attributes) {
+        const change = attributeChange(umlClass, attribute, mainTemplate);
+        if (change) {
+          changes[attribute.name] = change;
+        }
+      }
+    }
+    return {
+      className: umlClass.name,
+      attributes,
+      compounds: Array.from(umlClass.compounds.values()),
+      isRelationClass: isRelationClass(umlClass),
+      templateLabel: options.templateLabel?.(umlClass),
+      grmRules: umlClass.grmRules,
+      initiallyExpanded: mainTemplate === undefined || umlClass.template === mainTemplate,
+      changes,
+    };
+  });
 
   // Inheritance edges (UI2) and relation edges (NF9), kept apart for styling;
   // only between rendered classes (UI12).

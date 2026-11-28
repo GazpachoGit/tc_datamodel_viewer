@@ -61,8 +61,10 @@ selected attributes in a properties panel.
    once among the attributes (`attributeName`) and compound properties
    (`destPropertyName`) of the same class, across all `TcClass`,
    `TcAttributeAttach` and `TcCompoundPropertyRule` elements in all input
-   files — is invalid input. Repeats of a main template definition in a
-   dependency are resolved by TL3a. The same applies to IV2, IV6 and IV7.
+   files — is invalid input. This includes a main template repeating a
+   property of a dependency class: a property cannot be redefined. Repeats
+   covered by IV2, IV6 and IV7 between the main template and a dependency
+   are resolved by TL3a.
 - **IV2.** Conflicting parents — two different non-empty `parentClassName`
    values for the same class — are invalid input. An absent, empty, or `NULL`
    `parentClassName` does not conflict with a non-empty one; a class created
@@ -157,7 +159,7 @@ selected attributes in a properties panel.
    Compound properties are rendered after the attributes as `name : Compound`
    rows without an array marker.
    Attribute characteristics are not shown in the class node; they are shown
-   in the properties panel.
+   in the properties panel. A collapsed node (UI14) shows only its header.
 
    Example diagram representation:
 
@@ -212,6 +214,27 @@ selected attributes in a properties panel.
    rendered. Edges are rendered only between rendered classes. A rendered
    class declared in a dependency template shows that template's
    `displayName` in its node.
+- **UI13.** On a class not declared by the main template, an attribute
+   changed by the main template is highlighted in a distinct color. An
+   attribute is changed when the main template added it to the class
+   (`TcAttributeAttach`) or attached an LOV to it (`TcLOVAttach`). The
+   highlighted row has a tooltip naming the change. Attributes of the main
+   template's own classes are not highlighted.
+- **UI14.** Each class node with attributes or compound properties has one
+   button in its header that collapses or expands these rows. Its arrow icon
+   points down while the rows are shown and right while they are hidden.
+- **UI15.** When a template is displayed, the classes declared by the main
+   template, including its relation classes, are expanded; all other
+   classes are collapsed. The diagram is laid out once for this initial
+   state; expanding or collapsing a class does not change the layout.
+- **UI16.** The templates panel has a search field. The list shows the
+   templates whose `name` or `displayName` contains the search text,
+   ignoring case; when none match, it shows a message.
+- **UI17.** The templates panel and the properties panel can each be
+   collapsed with an arrow button in the panel header that points to the
+   panel's screen edge (left and right respectively). A collapsed panel
+   leaves a narrow tab at that edge with the panel name; clicking the tab
+   shows the panel again.
 
 ### Properties Panel
 
@@ -364,8 +387,6 @@ Steps TL1–TL5 run on the server; the client receives the built model
 - **TL3a.** The main template takes precedence over its dependencies. A
    dependency artifact is not selected when the main template defines the
    same thing:
-   - an attribute or compound property with the same name on the same class
-     (IV1);
    - the parent of a class that the main template declares with a non-empty
      parent (IV2);
    - a GRM rule with the same composite identifier for the same relation
@@ -374,6 +395,8 @@ Steps TL1–TL5 run on the server; the client receives the built model
 
    Such repeats are therefore not invalid input. Duplicates within one
    template, or between two dependency templates, remain invalid input.
+   Properties are not covered: a repeated property name is invalid input
+   (IV1).
 - **TL4.** Build the intermediate model from the selected artifacts by NF1–NF12,
    processing the main template first and then the dependency templates in
    `include` order; therefore, for NF11, a `TcLOV` of the main template takes

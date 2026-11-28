@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isRelationClass, layoutModel } from '../layout/layout';
 import { buildModel } from './builder';
 import { parseDependencyXml, parseTcXml } from './parser';
-import { selectArtifacts, visibleClassNames } from './selection';
+import { attributeChange, selectArtifacts, visibleClassNames } from './selection';
 import { ModelError, type ParsedFile } from './types';
 
 const NS = 'http://teamcenter.com/BusinessModel/TcBusinessData';
@@ -133,10 +133,7 @@ describe('main template precedence (TL3a)', () => {
   const custom = tc(
     'custom',
     `
-    <TcClass className="Shared" parentClassName="CustomParent">
-      <TcAttribute attributeName="size" attributeType="POM_string" isArray="false"/>
-    </TcClass>
-    <TcCompoundPropertyRule destTypeName="Shared" destPropertyName="calc" pathToSource="custom"/>
+    <TcClass className="Shared" parentClassName="CustomParent"/>
     <TcLOVAttach lovName="SizeLOV" typeName="Shared">
       <TcLOVAttachPropertyInfo valuePropertyName="size" conditionName="isTrue"/>
     </TcLOVAttach>
@@ -151,14 +148,25 @@ describe('main template precedence (TL3a)', () => {
     // IV2: the main template's parent wins.
     expect(shared.parent).toBe('CustomParent');
     expect(model.classes.has('DepParent')).toBe(false);
-    // IV1: the main template's attribute and compound property win; others are kept.
-    expect(shared.attributes.get('size')?.type).toBe('String');
-    expect(shared.attributes.has('dep_only')).toBe(true);
-    expect(shared.compounds.get('calc')?.chars.pathToSource).toBe('custom');
+    // Dependency properties are kept.
+    expect(shared.attributes.get('size')?.type).toBe('Integer');
+    expect(shared.compounds.get('calc')?.chars.pathToSource).toBe('dep');
     // IV7, IV6: one LOV attachment and one GRM rule, from the main template.
-    expect(shared.attributes.get('size')?.lovs).toHaveLength(1);
+    expect(shared.attributes.get('size')?.lovs.map((l) => l.template)).toEqual(['custom']);
     const rules = model.classes.get('SharedRel')!.grmRules;
     expect(rules.map((r) => r.chars.primaryCardinality)).toEqual(['-1']);
+  });
+
+  it('does not let the main template redefine a property (IV1)', () => {
+    const redefine = tc(
+      'redefine',
+      `<TcAttributeAttach className="Shared">
+         <TcAttribute attributeName="size" attributeType="POM_string" isArray="false"/>
+       </TcAttributeAttach>`,
+    );
+    expect(() => buildModel(selectArtifacts(redefine, [dep]))).toThrowError(
+      /class "Shared" has a duplicate property "size" \(IV1\)/,
+    );
   });
 
   it('still rejects duplicates within one template', () => {
@@ -170,6 +178,67 @@ describe('main template precedence (TL3a)', () => {
        </TcLOVAttach>`,
     );
     expect(() => buildModel(selectArtifacts(twice, [dep]))).toThrowError(/\(IV7\)/);
+  });
+});
+
+describe('template markers and changed attributes (UI13)', () => {
+  const lib = tc(
+    'lib',
+    `<TcClass className="Part">
+       <TcAttribute attributeName="plain" attributeType="POM_string" isArray="false"/>
+       <TcAttribute attributeName="coded" attributeType="POM_int" isArray="false"/>
+     </TcClass>`,
+  );
+  const app = tc(
+    'app',
+    `<TcClass className="AppPart" parentClassName="Part">
+       <TcAttribute attributeName="own" attributeType="POM_string" isArray="false"/>
+     </TcClass>
+     <TcAttributeAttach className="Part">
+       <TcAttribute attributeName="extra" attributeType="POM_date" isArray="false"/>
+     </TcAttributeAttach>
+     <TcLOVAttach lovName="Codes" typeName="Part">
+       <TcLOVAttachPropertyInfo valuePropertyName="coded" conditionName="isTrue"/>
+     </TcLOVAttach>
+     <TcGRMRule relationTypeName="AppRel" primaryTypeName="AppPart" secondaryTypeName="Part"
+         conditionName="isTrue"/>
+     <TcCompoundPropertyRule destTypeName="AppPart" destPropertyName="calc" pathToSource="x"/>`,
+  );
+  const model = () => buildModel(selectArtifacts(app, [lib]));
+
+  it('marks every artifact with the template of its file', () => {
+    const m = model();
+    const part = m.classes.get('Part')!;
+    expect(part.attributes.get('plain')?.template).toBe('lib');
+    expect(part.attributes.get('extra')?.template).toBe('app');
+    expect(part.attributes.get('coded')?.lovs[0].template).toBe('app');
+    expect(m.classes.get('AppPart')?.compounds.get('calc')?.template).toBe('app');
+    expect(m.classes.get('AppRel')?.grmRules[0].template).toBe('app');
+  });
+
+  it('reports attributes added or given an LOV by the main template', () => {
+    const m = model();
+    const part = m.classes.get('Part')!;
+    const change = (c: typeof part, name: string) =>
+      attributeChange(c, c.attributes.get(name)!, 'app');
+    expect(change(part, 'extra')).toBe('added');
+    expect(change(part, 'coded')).toBe('lov');
+    expect(change(part, 'plain')).toBeUndefined();
+    // Attributes of the main template's own classes are not marked.
+    expect(change(m.classes.get('AppPart')!, 'own')).toBeUndefined();
+  });
+
+  it('expands only main template classes and passes changes to nodes (UI13, UI15)', async () => {
+    const m = model();
+    const diagram = await layoutModel(m, { mainTemplate: 'app' });
+    const node = (id: string) => diagram.nodes.find((n) => n.id === id)!;
+    expect(node('AppPart').data.initiallyExpanded).toBe(true);
+    expect(node('Part').data.initiallyExpanded).toBe(false);
+    expect(node('Part').data.changes).toEqual({ extra: 'added', coded: 'lov' });
+    expect(node('AppPart').data.changes).toEqual({});
+    // Without a main template every class starts expanded.
+    const plain = await layoutModel(m);
+    expect(plain.nodes.every((n) => n.data.initiallyExpanded)).toBe(true);
   });
 });
 

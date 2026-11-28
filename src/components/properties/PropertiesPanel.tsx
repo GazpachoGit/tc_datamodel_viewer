@@ -3,7 +3,7 @@ import { useSelection, type SelectedProperty } from '../../app/selection';
 import type { AttributeLov } from '../../model/types';
 
 /**
- * Properties panel with Main and LOV tabs (UI8). Main shows the selected
+ * Content of the properties panel with Main and LOV tabs (UI8). Main shows the selected
  * attribute (AR1), compound property (AR2), or relation class (AR3); the LOV
  * tab appears only for attributes with LOV attachments (AR4).
  */
@@ -32,14 +32,13 @@ export function PropertiesPanel() {
   );
 
   return (
-    <aside className="props-panel">
-      <h2 className="props-panel__title">Properties</h2>
+    <>
       <div className="props-tabs">
         {tabButton('main', 'Main')}
         {hasLov && tabButton('lov', 'LOV')}
       </div>
       {activeTab === 'lov' ? <LovContent lovs={lovs} /> : <MainContent />}
-    </aside>
+    </>
   );
 }
 

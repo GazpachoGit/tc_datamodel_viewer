@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { TemplateInfo } from '../../model/types';
 
 interface TemplatesPanelProps {
@@ -9,16 +10,38 @@ interface TemplatesPanelProps {
   onSelect: (template: TemplateInfo) => void;
 }
 
-/** Templates panel (UI10): display names, sorted, selected one highlighted. */
+/**
+ * Content of the templates panel (UI10, UI16): a search field and the
+ * display names, sorted, with the selected one highlighted.
+ */
 export function TemplatesPanel({ templates, selected, loading, onSelect }: TemplatesPanelProps) {
+  const [query, setQuery] = useState('');
+
+  // UI16: case-insensitive match on the name or the display name.
+  const needle = query.trim().toLowerCase();
+  const matches = needle
+    ? templates.filter(
+        (t) =>
+          t.name.toLowerCase().includes(needle) || t.displayName.toLowerCase().includes(needle),
+      )
+    : templates;
+
   return (
-    <aside className={'templates-panel' + (loading ? ' templates-panel--loading' : '')}>
-      <h2 className="templates-panel__title">Templates</h2>
+    <div className={'templates-panel' + (loading ? ' templates-panel--loading' : '')}>
+      <input
+        type="search"
+        className="templates-panel__search"
+        placeholder="Search templates"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
       {templates.length === 0 ? (
         <p className="templates-panel__empty">No templates found.</p>
+      ) : matches.length === 0 ? (
+        <p className="templates-panel__empty">No matches.</p>
       ) : (
         <ul className="templates-panel__list">
-          {templates.map((template) => (
+          {matches.map((template) => (
             <li key={template.name}>
               <button
                 type="button"
@@ -36,6 +59,6 @@ export function TemplatesPanel({ templates, selected, loading, onSelect }: Templ
           ))}
         </ul>
       )}
-    </aside>
+    </div>
   );
 }

@@ -22,18 +22,135 @@ body,
 
 /* Templates panel (UI1, UI10) */
 
-.templates-panel {
-  width: 260px;
+/* Side panels (UI1, UI17) */
+
+.side-panel {
   flex-shrink: 0;
-  border-right: 1px solid #cbd5e0;
+  display: flex;
+  flex-direction: column;
   background: #f7fafc;
-  padding: 16px 0;
+  min-height: 0;
+}
+
+.side-panel--left {
+  width: 260px;
+  border-right: 1px solid #cbd5e0;
+}
+
+.side-panel--right {
+  width: 320px;
+  border-left: 1px solid #cbd5e0;
+}
+
+.side-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 12px 10px 16px;
+}
+
+.side-panel__title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.side-panel__body {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 
-.templates-panel__title {
-  margin: 0 16px 12px;
-  font-size: 15px;
+.side-panel--left .side-panel__body {
+  padding-bottom: 16px;
+}
+
+.side-panel--right .side-panel__body {
+  padding: 0 16px 16px;
+}
+
+/* Collapsed panel: a tab at the screen edge. */
+.side-tab {
+  flex-shrink: 0;
+  width: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border: none;
+  background: #edf2f7;
+  color: #4a5568;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.side-tab:hover {
+  background: #e2e8f0;
+  color: #1a202c;
+}
+
+.side-tab--left {
+  border-right: 1px solid #cbd5e0;
+}
+
+.side-tab--right {
+  border-left: 1px solid #cbd5e0;
+}
+
+.side-tab__label {
+  writing-mode: vertical-rl;
+  letter-spacing: 0.5px;
+}
+
+.side-tab--left .side-tab__label {
+  transform: rotate(180deg);
+}
+
+/* Arrow buttons (UI14, UI17) */
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: #4a5568;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: #e2e8f0;
+  color: #1a202c;
+}
+
+.chevron {
+  display: block;
+  transition: transform 0.12s ease;
+}
+
+/* Templates panel (UI10, UI16) */
+
+.templates-panel__search {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 0 16px 10px;
+  padding: 5px 8px;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 13px;
+  background: #ffffff;
+}
+
+.templates-panel__search:focus {
+  outline: 2px solid #90cdf4;
+  outline-offset: -1px;
 }
 
 .templates-panel__empty {
@@ -135,10 +252,24 @@ body,
 }
 
 .uml-class__name {
-  padding: 7px 12px;
+  position: relative;
+  padding: 7px 12px 7px 30px;
   border-bottom: 1.5px solid #4a5568;
   font-weight: 600;
   text-align: center;
+}
+
+/* UI14: collapsed node shows its header only. */
+.uml-class--collapsed .uml-class__name {
+  border-bottom: none;
+}
+
+.uml-class__toggle {
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  width: 20px;
+  height: 20px;
 }
 
 /* UI12: dependency template of the class. */
@@ -176,6 +307,23 @@ body,
   background: #2b6cb0;
 }
 
+/* UI13: attributes added or given an LOV by the main template. */
+.uml-attr--changed {
+  background: #e6fffa;
+  color: #234e52;
+  box-shadow: inset 3px 0 0 #38b2ac;
+}
+
+.uml-attr--changed:hover {
+  background: #b2f5ea;
+}
+
+.uml-attr--changed.uml-attr--selected,
+.uml-attr--changed.uml-attr--selected:hover {
+  background: #2b6cb0;
+  color: #ffffff;
+}
+
 .uml-handle {
   opacity: 0;
   pointer-events: none;
@@ -183,19 +331,6 @@ body,
 
 /* Properties panel (UI1, AR1) */
 
-.props-panel {
-  width: 320px;
-  flex-shrink: 0;
-  border-left: 1px solid #cbd5e0;
-  background: #f7fafc;
-  padding: 16px;
-  overflow: auto;
-}
-
-.props-panel__title {
-  margin: 0 0 12px;
-  font-size: 15px;
-}
 
 /* Tabs (UI8) */
 

@@ -13,6 +13,8 @@ export interface LovValue {
 export interface AttributeLov {
   /** LOV name from `lovName`. */
   name: string;
+  /** Template of the file this artifact was read from (UI13). */
+  template?: string;
   /** Condition from `conditionName`. */
   condition: string;
   /**
@@ -26,6 +28,8 @@ export interface AttributeLov {
 export interface UmlAttribute {
   /** Attribute name from `attributeName`. */
   name: string;
+  /** Template of the file this artifact was read from (UI13). */
+  template?: string;
   /** Display type converted from `attributeType` (spec/mapping.md). */
   type: string;
   /** Whether the attribute is an array (adds `[]` in the diagram). */
@@ -47,6 +51,8 @@ export interface UmlAttribute {
 export interface UmlCompound {
   /** Property name from `destPropertyName`. */
   name: string;
+  /** Template of the file this artifact was read from (UI13). */
+  template?: string;
   /** Display type, always `Compound` (spec/mapping.md). */
   type: string;
   /**
@@ -58,6 +64,8 @@ export interface UmlCompound {
 
 /** One GRM rule of a relation class, from TcGRMRule (NF10). */
 export interface GrmRule {
+  /** Template of the file this artifact was read from (UI13). */
+  template?: string;
   /**
    * Characteristics from spec/mapping.md, keyed by their original XML
    * names. Missing or empty values are omitted (AR3).

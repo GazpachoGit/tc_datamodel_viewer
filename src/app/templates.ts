@@ -45,6 +45,7 @@ async function fetchView(info: TemplateInfo, templates: TemplateInfo[]): Promise
   const displayNames = new Map(templates.map((t) => [t.name, t.displayName]));
   const diagram = await layoutModel(model, {
     visible: visibleClasses,
+    mainTemplate: info.name,
     templateLabel: (umlClass) =>
       umlClass.template && umlClass.template !== info.name
         ? (displayNames.get(umlClass.template) ?? umlClass.template)

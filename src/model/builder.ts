@@ -81,20 +81,20 @@ export function buildModel(files: ParsedFile[]): Model {
       umlClass.template ??= file.template;
       setParent(umlClass, rawClass.parentClassName, file.fileName);
       for (const rawAttr of rawClass.attributes) {
-        addAttribute(umlClass, rawAttr, file.fileName);
+        addAttribute(umlClass, rawAttr, file);
       }
     }
     // NF7: TcAttributeAttach adds attributes to an existing or new class.
     for (const attach of file.attaches) {
       const umlClass = getOrCreateClass(model, attach.className);
       for (const rawAttr of attach.attributes) {
-        addAttribute(umlClass, rawAttr, file.fileName);
+        addAttribute(umlClass, rawAttr, file);
       }
     }
     // NF8: TcCompoundPropertyRule adds compound properties to the dest class.
     for (const rule of file.compoundRules) {
       const umlClass = getOrCreateClass(model, rule.destTypeName);
-      addCompound(umlClass, rule, file.fileName);
+      addCompound(umlClass, rule, file);
     }
     // NF9: relation properties connect the primary class to a relation class.
     for (const rel of file.relationProperties) {
@@ -110,7 +110,7 @@ export function buildModel(files: ParsedFile[]): Model {
     }
     // NF10: TcGRMRule appends GRM rules to its relation class.
     for (const rule of file.grmRules) {
-      addGrmRule(model, grmRuleIds, rule, file.fileName);
+      addGrmRule(model, grmRuleIds, rule, file);
     }
   }
 
@@ -188,16 +188,17 @@ function setParent(umlClass: UmlClass, parentName: string | undefined, fileName:
 }
 
 /** NF6, IV1, IV3: converts and adds one attribute to a class. */
-function addAttribute(umlClass: UmlClass, rawAttr: RawAttribute, fileName: string): void {
+function addAttribute(umlClass: UmlClass, rawAttr: RawAttribute, file: ParsedFile): void {
   const typeMapping = ATTRIBUTE_TYPES[rawAttr.attributeType];
   if (!typeMapping) {
     return; // IV3: unknown attribute types are silently ignored.
   }
-  requireUniqueName(umlClass, rawAttr.name, fileName);
+  requireUniqueName(umlClass, rawAttr.name, file.fileName);
 
   const arrayFlagValue = rawAttr.xmlAttributes[ARRAY_FLAG];
   const attribute: UmlAttribute = {
     name: rawAttr.name,
+    template: file.template,
     type: typeMapping.type,
     isArray: arrayFlagValue === 'true',
     arrayFlagName: ARRAY_FLAG,
@@ -209,10 +210,11 @@ function addAttribute(umlClass: UmlClass, rawAttr: RawAttribute, fileName: strin
 }
 
 /** NF8, IV1: converts and adds one compound property to a class. */
-function addCompound(umlClass: UmlClass, rule: RawCompoundRule, fileName: string): void {
-  requireUniqueName(umlClass, rule.destPropertyName, fileName);
+function addCompound(umlClass: UmlClass, rule: RawCompoundRule, file: ParsedFile): void {
+  requireUniqueName(umlClass, rule.destPropertyName, file.fileName);
   umlClass.compounds.set(rule.destPropertyName, {
     name: rule.destPropertyName,
+    template: file.template,
     type: COMPOUND_TYPE,
     chars: pickChars(rule.xmlAttributes, COMPOUND_CHARS),
   });
@@ -232,7 +234,7 @@ function addGrmRule(
   model: Model,
   grmRuleIds: Map<string, Set<string>>,
   rule: RawGrmRule,
-  fileName: string,
+  file: ParsedFile,
 ): void {
   // NF10: the ImanRelation fallback parent is assigned after all files.
   const umlClass = getOrCreateClass(model, rule.relationTypeName);
@@ -247,12 +249,15 @@ function addGrmRule(
   if (seen.has(key)) {
     const id = GRM_RULE_ID.map((part) => `${part} "${rule.xmlAttributes[part] ?? ''}"`).join(', ');
     throw new ModelError(
-      `${fileName}: relation class "${umlClass.name}" has a duplicate GRM rule (${id}) (IV6)`,
+      `${file.fileName}: relation class "${umlClass.name}" has a duplicate GRM rule (${id}) (IV6)`,
     );
   }
   seen.add(key);
 
-  umlClass.grmRules.push({ chars: pickChars(rule.xmlAttributes, GRM_RULE_CHARS) });
+  umlClass.grmRules.push({
+    template: file.template,
+    chars: pickChars(rule.xmlAttributes, GRM_RULE_CHARS),
+  });
 }
 
 /**
@@ -303,6 +308,7 @@ function attachLovs(model: Model, files: ParsedFile[]): void {
       }
       attribute.lovs.push({
         name: attach.lovName,
+        template: file.template,
         condition: attach.conditionName,
         values: definitions.get(attach.lovName),
       });

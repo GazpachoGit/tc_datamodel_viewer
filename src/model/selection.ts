@@ -2,6 +2,8 @@ import { NO_PARENT, grmRuleKey } from './builder';
 import type {
   Model,
   ParsedFile,
+  UmlAttribute,
+  UmlClass,
   RawAttributeAttach,
   RawClass,
   RawCompoundRule,
@@ -28,10 +30,11 @@ interface ClassArtifacts {
  * (NF9) of dependencies are never selected.
  *
  * TL3a: the main template takes precedence. A dependency artifact that the
- * main template also defines — a property of the same class (IV1), the
- * parent of a class the main template declares with a parent (IV2), a GRM
- * rule with the same identifier (IV6), or an LOV attachment with the same
- * identifier (IV7) — is dropped, so it neither conflicts nor overrides.
+ * main template also defines — the parent of a class the main template
+ * declares with a parent (IV2), a GRM rule with the same identifier (IV6),
+ * or an LOV attachment with the same identifier (IV7) — is dropped, so it
+ * neither conflicts nor overrides. Repeated property names (IV1) are not
+ * resolved: a property cannot be redefined.
  *
  * Returns the main file followed by the filtered dependency files, in the
  * given order (TL4).
@@ -113,6 +116,32 @@ export function visibleClassNames(model: Model, main: ParsedFile): Set<string> {
   return visible;
 }
 
+/** How the main template changed an attribute of a dependency class (UI13). */
+export type AttributeChange = 'added' | 'lov';
+
+/**
+ * UI13: an attribute of a class not declared by the main template is
+ * changed when the main template added it (`'added'`) or attached an LOV to
+ * it (`'lov'`). Attributes of the main template's own classes are not
+ * reported.
+ */
+export function attributeChange(
+  umlClass: UmlClass,
+  attribute: UmlAttribute,
+  mainTemplate: string,
+): AttributeChange | undefined {
+  if (umlClass.template === mainTemplate) {
+    return undefined;
+  }
+  if (attribute.template === mainTemplate) {
+    return 'added';
+  }
+  if (attribute.lovs.some((lov) => lov.template === mainTemplate)) {
+    return 'lov';
+  }
+  return undefined;
+}
+
 /** Class names the main template refers to (TL3). */
 function referencedClasses(main: ParsedFile): Set<string> {
   const names = new Set<string>();
@@ -135,8 +164,6 @@ function referencedClasses(main: ParsedFile): Set<string> {
 
 /** What the main template defines itself, for its precedence (TL3a). */
 interface MainDefinitions {
-  /** Property names (attributes and compound properties) per class. */
-  properties: Map<string, Set<string>>;
   /** Classes the main template declares with a parent. */
   parents: Set<string>;
   /** GRM rule identifiers per relation class. */
@@ -146,20 +173,6 @@ interface MainDefinitions {
 }
 
 function mainDefinitions(main: ParsedFile): MainDefinitions {
-  const properties = new Map<string, Set<string>>();
-  const addProperty = (className: string, name: string) => {
-    let names = properties.get(className);
-    if (!names) {
-      names = new Set();
-      properties.set(className, names);
-    }
-    names.add(name);
-  };
-  for (const rawClass of [...main.classes, ...main.attaches]) {
-    rawClass.attributes.forEach((a) => addProperty(rawClass.className, a.name));
-  }
-  main.compoundRules.forEach((r) => addProperty(r.destTypeName, r.destPropertyName));
-
   const parents = new Set(
     main.classes
       .filter((c) => c.parentClassName && c.parentClassName !== NO_PARENT)
@@ -177,7 +190,6 @@ function mainDefinitions(main: ParsedFile): MainDefinitions {
   }
 
   return {
-    properties,
     parents,
     grmRules,
     lovAttaches: new Set(main.lovAttaches.map(lovAttachKey)),
@@ -190,20 +202,13 @@ function withoutMainDefinitions(
   className: string,
   own: MainDefinitions,
 ): ClassArtifacts {
-  const ownProperties = own.properties.get(className);
-  const notOwn = (name: string) => !ownProperties?.has(name);
   const ownGrmRules = own.grmRules.get(className);
   return {
-    classes: artifacts.classes.map((c) => ({
-      className: c.className,
-      parentClassName: own.parents.has(className) ? undefined : c.parentClassName,
-      attributes: c.attributes.filter((a) => notOwn(a.name)),
-    })),
-    attaches: artifacts.attaches.map((a) => ({
-      className: a.className,
-      attributes: a.attributes.filter((attr) => notOwn(attr.name)),
-    })),
-    compoundRules: artifacts.compoundRules.filter((r) => notOwn(r.destPropertyName)),
+    classes: own.parents.has(className)
+      ? artifacts.classes.map((c) => ({ ...c, parentClassName: undefined }))
+      : artifacts.classes,
+    attaches: artifacts.attaches,
+    compoundRules: artifacts.compoundRules,
     grmRules: artifacts.grmRules.filter((r) => !ownGrmRules?.has(grmRuleKey(r))),
     lovAttaches: artifacts.lovAttaches.filter((a) => !own.lovAttaches.has(lovAttachKey(a))),
   };
